@@ -116,7 +116,7 @@ config
 
 # generate 100 samples
 set_seed(1)
-num_samples = 100
+num_samples = 1000
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples)
 )

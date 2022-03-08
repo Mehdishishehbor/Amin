@@ -68,7 +68,7 @@ def fit_model_torch(
         optimizer = torch.optim.Adam(
             model.parameters() if model_param_groups is None else model_param_groups, 
             lr=lr_default)
-        
+        loss_hist = []
         epochs_iter = tqdm(range(num_iter),desc='Epoch',position=0,leave=True)
         for j in epochs_iter:
             # zero gradients from previous iteration
@@ -84,6 +84,7 @@ def fit_model_torch(
             desc = f'Epoch {j} - loss {acc_loss:.4f}'
             epochs_iter.set_description(desc)
             epochs_iter.update(1)
+            loss_hist.append(acc_loss)
         
         if loss.item()<f_inc:
             current_state_dict = deepcopy(model.state_dict())
@@ -94,4 +95,4 @@ def fit_model_torch(
     
     model.load_state_dict(current_state_dict)
 
-    return f_inc
+    return f_inc, loss_hist
