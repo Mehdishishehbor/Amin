@@ -116,7 +116,7 @@ config
 
 # generate 100 samples
 set_seed(1)
-num_samples = 1000
+num_samples = 100
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples)
 )
@@ -159,17 +159,17 @@ model3 = LMGP(
 # optimize noise successively
 loss_f, loss_hist = fit_model_torch(
     model3, 
-    num_iter= 3000,
+    num_iter= 10000,
     num_restarts= 0,
-    lr_default=0.01
+    lr_default=0.005,
 )
 
 # 
 
 print('loss is.......: %6.2f'%loss_f)
 
-
-plt.plot(loss_hist)
+for loss in loss_hist:
+    plt.plot(loss[500:])
 plt.show()
 
 # prediction on test set
@@ -202,6 +202,7 @@ print(f'The total time in second is {end_time - start_time}')
 # plot latent values
 plot_latent.plot_ls(model3, constraints_flag= True)
 
-plt.plot(test_y, test_mean3, 'r.')
+plt.plot(test_y, test_mean3, 'ro')
+plt.plot(test_y, test_y, 'b')
 plt.show()
 

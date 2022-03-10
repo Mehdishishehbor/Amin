@@ -64,6 +64,7 @@ def fit_model_torch(
     f_inc = math.inf
     current_state_dict = model.state_dict()
 
+    loss_hist_total = []
     for i in range(num_restarts+1):
         optimizer = torch.optim.Adam(
             model.parameters() if model_param_groups is None else model_param_groups, 
@@ -86,6 +87,8 @@ def fit_model_torch(
             epochs_iter.update(1)
             loss_hist.append(acc_loss)
         
+        loss_hist_total.append(loss_hist)
+
         if loss.item()<f_inc:
             current_state_dict = deepcopy(model.state_dict())
             f_inc = loss.item()
@@ -95,4 +98,4 @@ def fit_model_torch(
     
     model.load_state_dict(current_state_dict)
 
-    return f_inc, loss_hist
+    return f_inc, loss_hist_total

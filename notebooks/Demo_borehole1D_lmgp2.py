@@ -168,7 +168,7 @@ print('NLL obtained from noise tuning strategy.......: %6.2f'%nll_inc_tuned)
 # prediction on test set
 with torch.no_grad():
     # set return_std = False if standard deviation is not needed
-    test_mean2 = model2.predict(test_x,return_std=False)
+    test_mean2 = model2.predict(test_x,return_std=False, include_noise = True)
     
 
 
@@ -196,6 +196,7 @@ print(f'The total time in second is {end_time - start_time}')
 plot_latent.plot_ls(model2, constraints_flag= True)
 
 plt.plot(test_y, test_mean2, 'ro')
+plt.plot(test_y, test_y, 'b')
 plt.show()
 
 

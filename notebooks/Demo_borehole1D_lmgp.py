@@ -116,7 +116,7 @@ config
 
 # generate 100 samples
 set_seed(1)
-num_samples = 1000
+num_samples = 100
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples)
 )
@@ -183,7 +183,7 @@ model
 # fit model with 10 different starts
 reslist,nll_inc = fit_model_scipy(
     model,
-    num_restarts=5, # number of starting points
+    num_restarts=9, # number of starting points
 )
 
 # set model to eval model; default is in train model
@@ -227,4 +227,5 @@ print(f'The total time in second is {end_time - start_time}')
 plot_latent.plot_ls(model, constraints_flag= True)
 
 plt.plot(test_y, test_mean, 'ro')
+plt.plot(test_y, test_y, 'b')
 plt.show()
