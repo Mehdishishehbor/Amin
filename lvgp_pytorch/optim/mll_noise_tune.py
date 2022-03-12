@@ -42,6 +42,7 @@ def loocv_rrmse(model:GPR):
     loo_error = Kinv_y/Kinv_diag
     return (loo_error**2).mean().sqrt().item()
 
+# NLL is negative loglikelihood
 def noise_tune(
     model:GPR,add_prior:bool=True,
     num_restarts:int=9,criterion:str='NLL',

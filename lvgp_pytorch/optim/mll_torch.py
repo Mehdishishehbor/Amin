@@ -26,7 +26,8 @@ def fit_model_torch(
     model_param_groups:Optional[List]=None,
     lr_default:float=0.1,
     num_iter:int=100,
-    num_restarts:int=0) -> float:
+    num_restarts:int=0,
+    break_steps:int = 50) -> float:
     '''Optimize the likelihood/posterior of a standard GP model using `torch.optim.Adam`.
 
     This is a convenience function that covers many situations for optimizing a standard GP model.
@@ -86,6 +87,10 @@ def fit_model_torch(
             epochs_iter.set_description(desc)
             epochs_iter.update(1)
             loss_hist.append(acc_loss)
+
+            if j > break_steps and j%break_steps == 0:
+                if ( (torch.mean(torch.Tensor(loss_hist)[j-break_steps:j]) - loss_hist[j]) <= 0 ):
+                    break
         
         loss_hist_total.append(loss_hist)
 

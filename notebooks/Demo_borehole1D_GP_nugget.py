@@ -30,8 +30,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-from lvgp_pytorch.models import LVGPR, LMGP
-from lvgp_pytorch.optim import fit_model_torch
+from lvgp_pytorch.models import LVGPR, LMGP, GPR
+from lvgp_pytorch.optim import fit_model_scipy,noise_tune
 from lvgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
 from lvgp_pytorch.utils.input_space import InputSpace
 
@@ -39,7 +39,8 @@ from typing import Dict
 
 from lvgp_pytorch.visual import plot_latent
 
-noise_flag = 1
+
+noise_flag = 0
 
 # start timing
 start_time = time.time()
@@ -103,8 +104,11 @@ Tl = NumericalVariable(name='T_l',lower=63.1,upper=116)
 L = NumericalVariable(name='L',lower=1120,upper=1680)
 K_w = NumericalVariable(name='K_w',lower=9855,upper=12045)
 
-r_w = CategoricalVariable(name='r_w',levels=np.linspace(0.05,0.15,5))
-H_l = CategoricalVariable(name='H_l',levels=np.linspace(700,820,5))
+r_w = NumericalVariable(name='r_w',lower=0.05,upper=0.15)
+H_l = NumericalVariable(name='H_l',lower=700,upper=820)
+
+#r_w = CategoricalVariable(name='r_w',levels=np.linspace(0.05,0.15,5))
+#H_l = CategoricalVariable(name='H_l',levels=np.linspace(700,820,5))
 config.add_inputs([r,Tu,Hu,Tl,L,K_w,r_w,H_l])
 
 config
@@ -131,6 +135,7 @@ train_y = torch.tensor(train_y).double()
 if noise_flag == 1:
     train_y += torch.randn(train_y.size()) * 3.0**2
 
+
 # generate 1000 test samples
 num_samples = 10000
 test_x = torch.from_numpy(config.random_sample(np.random,num_samples))
@@ -147,53 +152,45 @@ if noise_flag == 1:
 
 # ## save .mat files
 from scipy.io import savemat
-savemat('borehole_100_noise.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
+savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 
 set_seed(4)
-model3 = LMGP(
-    train_x=train_x,
-    train_y=train_y,
-    qual_index=config.qual_index,
-    quant_index=config.quant_index,
-    num_levels_per_var=list(config.num_levels.values()),
-    quant_correlation_class="RBFKernel",
-).double()
+model2 = GPR( train_x=train_x,train_y=train_y,
+            correlation_kernel="RBFKernel",
+            noise=1e-4,
+            fix_noise=True,
+            lb_noise=1e-8)
 
 
 # optimize noise successively
-loss_f, loss_hist = fit_model_torch(
-    model3, 
-    num_iter= 10000,
-    num_restarts= 0,
-    lr_default=0.005,
-    break_steps=2000
+nll_inc_tuned,opt_history = noise_tune(
+    model2, 
+    num_restarts = 11 # number of restarts in the initial iteration
 )
 
 # 
-
-print('loss is.......: %6.2f'%loss_f)
-
+print('NLL obtained from noise tuning strategy.......: %6.2f'%nll_inc_tuned)
 
 # prediction on test set
 with torch.no_grad():
     # set return_std = False if standard deviation is not needed
-    test_mean3 = model3.predict(test_x,return_std=False)
+    test_mean2 = model2.predict(test_x,return_std=False, include_noise = True)
     
 
 
 print('######################################')
-noise = model3.likelihood.noise_covar.noise.item() * train_y.std()**2
+noise = model2.likelihood.noise_covar.noise.item() * train_y.std()**2
 print(f'The estimated noise parameter is {noise}')
 
 # print MSE
-mse = ( (test_y-test_mean3)**2).mean()
+mse = ( (test_y-test_mean2)**2).mean()
 print('MSE : %5.3f'%mse.item())
 
 
 # print RRMSE
-rrmse = torch.sqrt(((test_y-test_mean3)**2).mean()/((test_y-test_y.mean())**2).mean())
-print('Test RRMSE with torch adam optimizer is: %5.3f'%rrmse.item())
+rrmse = torch.sqrt(((test_y-test_mean2)**2).mean()/((test_y-test_y.mean())**2).mean())
+print('Test RRMSE with noise-tuning strategy : %5.3f'%rrmse.item())
 
 
 
@@ -202,15 +199,9 @@ print('Test RRMSE with torch adam optimizer is: %5.3f'%rrmse.item())
 end_time = time.time()
 print(f'The total time in second is {end_time - start_time}')
 
-#
-for loss in loss_hist:
-    plt.plot(loss[500:])
-plt.show()
 
-# plot latent values
-plot_latent.plot_ls(model3, constraints_flag= True)
-
-plt.plot(test_y, test_mean3, 'ro')
+plt.plot(test_y, test_mean2, 'r.')
 plt.plot(test_y, test_y, 'b')
 plt.show()
+
 

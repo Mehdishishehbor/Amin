@@ -40,6 +40,8 @@ from typing import Dict
 from lvgp_pytorch.visual import plot_latent
 
 
+noise_flag = 1
+
 # start timing
 start_time = time.time()
 
@@ -116,7 +118,7 @@ config
 
 # generate 100 samples
 set_seed(1)
-num_samples = 1000
+num_samples = 100
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples)
 )
@@ -126,6 +128,9 @@ for i,x in enumerate(train_x):
     train_y[i] = borehole(config.get_dict_from_array(x.numpy()))
 
 train_y = torch.tensor(train_y).double()
+
+if noise_flag == 1:
+    train_y += torch.randn(train_y.size()) * 3.0**2
 
 
 # generate 1000 test samples
@@ -139,6 +144,8 @@ for i,x in enumerate(test_x):
 # create tensor objects
 test_y = torch.tensor(test_y).to(train_y)
 
+if noise_flag == 1:
+    test_y += torch.randn(test_y.size()) * 3.0**2
 
 # ## save .mat files
 from scipy.io import savemat

@@ -53,11 +53,14 @@ class LMGP(GPR):
         lb_noise:float=1e-8,
     ) -> None:
 
-        qual_kernel = kernels.RBFKernel(
-            active_dims=torch.arange(lv_dim)
-        )
-        qual_kernel.initialize(**{'lengthscale':1.0})
-        qual_kernel.raw_lengthscale.requires_grad_(False)
+
+        if len(qual_index) > 0:
+            qual_kernel = kernels.RBFKernel(
+                active_dims=torch.arange(lv_dim)
+            )
+            qual_kernel.initialize(**{'lengthscale':1.0})
+            qual_kernel.raw_lengthscale.requires_grad_(False)
+
 
         if len(quant_index) == 0:
             correlation_kernel = qual_kernel
@@ -76,7 +79,11 @@ class LMGP(GPR):
             quant_kernel.register_prior(
                 'lengthscale_prior',MollifiedUniformPrior(math.log(0.1),math.log(10)),'raw_lengthscale'
             )
-            correlation_kernel = qual_kernel*quant_kernel
+            
+            if len(qual_index) > 0:
+                correlation_kernel = qual_kernel*quant_kernel
+            else:
+                correlation_kernel = quant_kernel
 
         super(LMGP,self).__init__(
             train_x=train_x,train_y=train_y,

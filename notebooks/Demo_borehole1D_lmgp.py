@@ -40,6 +40,9 @@ from typing import Dict
 from lvgp_pytorch.visual import plot_latent
 
 
+noise_flag = 1
+
+
 # start timing
 start_time = time.time()
 
@@ -125,7 +128,12 @@ train_y = [None]*num_samples
 for i,x in enumerate(train_x):
     train_y[i] = borehole(config.get_dict_from_array(x.numpy()))
 
+
 train_y = torch.tensor(train_y).double()
+
+if noise_flag == 1:
+    train_y += torch.randn(train_y.size()) * 3.0**2
+
 
 
 # generate 1000 test samples
@@ -139,10 +147,12 @@ for i,x in enumerate(test_x):
 # create tensor objects
 test_y = torch.tensor(test_y).to(train_y)
 
+if noise_flag == 1:
+    test_y += torch.randn(test_y.size()) * 3.0**2
 
 # ## save .mat files
 from scipy.io import savemat
-savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
+savemat('borehole_1000_noise.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 
 # ## Creating a LVGP instance
@@ -183,7 +193,7 @@ model
 # fit model with 10 different starts
 reslist,nll_inc = fit_model_scipy(
     model,
-    num_restarts=9, # number of starting points
+    num_restarts=0, # number of starting points
 )
 
 # set model to eval model; default is in train model
