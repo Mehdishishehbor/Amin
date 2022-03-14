@@ -22,15 +22,25 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
+import time
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 from lvgp_pytorch.models import LVGPR
-from lvgp_pytorch.optim import fit_model_scipy,noise_tune
+from lvgp_pytorch.optim import fit_model_scipy,noise_tune, fit_model_torch
 from lvgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
 from lvgp_pytorch.utils.input_space import InputSpace
 
+
 from typing import Dict
 from copy import deepcopy
+
+
+
+# start timing
+start_time = time.time()
 
 #get_ipython().run_line_magic('matplotlib', 'inline')
 plt.rcParams['figure.dpi']=150
@@ -104,7 +114,7 @@ config
 
 # generate 100 samples
 set_seed(1)
-num_samples = 100
+num_samples = 1000
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples)
 )
@@ -164,7 +174,7 @@ model
 # fit model with 10 different starts
 reslist,nll_inc = fit_model_scipy(
     model,
-    num_restarts=9, # number of starting points
+    num_restarts=11, # number of starting points
 )
 
 # set model to eval model; default is in train model
@@ -225,6 +235,24 @@ plt.show()
 # In[ ]:
 
 
+print('######################################')
+noise = model.likelihood.noise_covar.noise.item() * train_y.std()**2
+print(f'The estimated noise parameter is {noise}')
+
+# print MSE
+mse = ( (test_y-test_mean)**2).mean()
+print('MSE : %5.3f'%mse.item())
+
+
+# ending timing
+end_time = time.time()
+print(f'The total time in second is {end_time - start_time}')
+
+
+
+# start timing
+start_time = time.time()
+
 set_seed(4)
 model2 = LVGPR(
     train_x=train_x,
@@ -238,7 +266,7 @@ model2 = LVGPR(
 # optimize noise successively
 nll_inc_tuned,opt_history = noise_tune(
     model2, 
-    num_restarts = 9 # number of restarts in the initial iteration
+    num_restarts = 11 # number of restarts in the initial iteration
 )
 
 # 
@@ -252,7 +280,7 @@ with torch.no_grad():
     
 print()
 # print RRMSE
-rrmse = torch.sqrt(((test_y-test_mean)**2).mean()/((test_y-test_y.mean())**2).mean())
+rrmse = torch.sqrt(((test_y-test_mean2)**2).mean()/((test_y-test_y.mean())**2).mean())
 print('Test RRMSE with noise-tuning strategy : %5.3f'%rrmse.item())
 
 
@@ -289,6 +317,114 @@ fig.tight_layout()
 plt.show()
 
 # In[ ]:
+
+print('######################################')
+noise = model2.likelihood.noise_covar.noise.item() * train_y.std()**2
+print(f'The estimated noise parameter is {noise}')
+
+# print MSE
+mse = ( (test_y-test_mean2)**2).mean()
+print('MSE : %5.3f'%mse.item())
+
+
+# ending timing
+end_time = time.time()
+print(f'The total time in second is {end_time - start_time}')
+
+
+
+##-------------------------Adam--------------------------
+
+# start timing
+start_time = time.time()
+
+set_seed(4)
+model3 = LVGPR(
+    train_x=train_x,
+    train_y=train_y,
+    qual_index=config.qual_index,
+    quant_index=config.quant_index,
+    num_levels_per_var=list(config.num_levels.values()),
+    quant_correlation_class="RBFKernel",
+).double()
+
+
+# optimize noise successively
+loss_f, loss_hist = fit_model_torch(
+    model3, 
+    num_iter= 3000,
+    num_restarts= 0,
+    lr_default=0.005,
+)
+
+# 
+
+print('loss is.......: %6.2f'%loss_f)
+
+for loss in loss_hist:
+    plt.plot(loss[500:])
+plt.show()
+# prediction on test set
+with torch.no_grad():
+    # set return_std = False if standard deviation is not needed
+    test_mean3 = model3.predict(test_x,return_std=False)
+    
+print()
+# print RRMSE
+rrmse = torch.sqrt(((test_y-test_mean3)**2).mean()/((test_y-test_y.mean())**2).mean())
+print('Test RRMSE with noise-tuning strategy : %5.3f'%rrmse.item())
+
+
+# In this case, the test RRMSEs with both methods are the same, even though the (negative) likelihoods are somewhat different. In problems with larger number of dimensions or larger number of levels, the `noise_tune` method will tend to perform better under the same computational budget.
+
+# In[ ]:
+
+
+# plot latent values
+fig,axs = plt.subplots(1,2,figsize=(10,4))
+
+for i in range(2):
+    latents = model3.lv_mapping_layers[i].latents.detach().numpy()
+    _ = axs[i].plot(latents[:,0],latents[:,1],'k.')
+    
+    hyp = config.get_variable_by_idx(config.qual_index[i])
+    # annotate the labels
+    for j,level in enumerate(hyp.levels):
+        _ = axs[i].annotate(
+            str(level),latents[j,:],
+            textcoords = 'offset points',
+            xytext = (-1,3),
+            size='8'
+        )
+        
+    
+    _ = axs[i].set_xlabel(r'$z_1$')
+    _ = axs[i].set_ylabel(r'$z_2$')
+    _ = axs[i].set_title(r'$%s$' %hyp.name)
+    _ = axs[i].grid(alpha=0.5)
+    _ = axs[i].set_aspect('equal', 'datalim')
+
+fig.tight_layout()
+plt.show()
+
+# In[ ]:
+
+print('######################################')
+noise = model3.likelihood.noise_covar.noise.item() * train_y.std()**2
+print(f'The estimated noise parameter is {noise}')
+
+# print MSE
+mse = ( (test_y-test_mean3)**2).mean()
+print('MSE : %5.3f'%mse.item())
+
+
+# ending timing
+end_time = time.time()
+print(f'The total time in second is {end_time - start_time}')
+
+
+
+
 
 
 

@@ -31,7 +31,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 from lvgp_pytorch.models import LVGPR, LMGP
-from lvgp_pytorch.optim import fit_model_scipy,noise_tune
+from lvgp_pytorch.optim import fit_model_torch
 from lvgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
 from lvgp_pytorch.utils.input_space import InputSpace
 
@@ -39,9 +39,7 @@ from typing import Dict
 
 from lvgp_pytorch.visual import plot_latent
 
-
 noise_flag = 1
-
 
 # start timing
 start_time = time.time()
@@ -128,13 +126,10 @@ train_y = [None]*num_samples
 for i,x in enumerate(train_x):
     train_y[i] = borehole(config.get_dict_from_array(x.numpy()))
 
-
 train_y = torch.tensor(train_y).double()
 
 if noise_flag == 1:
     train_y += torch.randn(train_y.size()) * 3.0**2
-
-
 
 # generate 1000 test samples
 num_samples = 10000
@@ -152,21 +147,11 @@ if noise_flag == 1:
 
 # ## save .mat files
 from scipy.io import savemat
-savemat('borehole_1000_noise.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
+savemat('borehole_100_noise.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 
-# ## Creating a LVGP instance
-# 
-# We begin by defining the `LVGPR` instance. The required input arguments are the training data (`train_x` and `train_y`), the indices for the qualitative (`qual_index`) and quantitative (`quant_index`) variables, and the number of levels for each qualitative variable (`num_levels_per_var`), whose entries are specified in the same as order as that in the index list. The `InputSpace` object automatically generates the latter three entries.
-# 
-# There are other arguments, which have default values. Among them, the important one is the type of the correlation kernel for the quantitative inputs (`quant_correlation_class`). Available options are `'RBFKernel'`(default), `Matern52Kernel` (twice-differentiable) and `Matern32Kernel`(once-differentiable). 
-
-# In[5]:
-
-
-# create LVGP instance
 set_seed(4)
-model = LMGP(
+model3 = LMGP(
     train_x=train_x,
     train_y=train_y,
     qual_index=config.qual_index,
@@ -175,57 +160,41 @@ model = LMGP(
     quant_correlation_class="RBFKernel",
 ).double()
 
-# print model structure
-model
 
-# Define prior
-
-
-# Note that the hyperparameters of the model are not yet optimized!
-# 
-# ## Optimization using multiple random starts
-# 
-# There are two optimization methods available in the package. In the first method, all hyperparameters are jointly optimized using multi-start numerical optimization with **L-BFGS** as the optimization algorithm.
-
-# In[6]:
-
-
-# fit model with 10 different starts
-reslist,nll_inc = fit_model_scipy(
-    model,
-    num_restarts=0, # number of starting points
+# optimize noise successively
+loss_f, loss_hist = fit_model_torch(
+    model3, 
+    num_iter= 10000,
+    num_restarts= 0,
+    lr_default=0.005,
+    break_steps=2000
 )
 
-# set model to eval model; default is in train model
-_ = model.eval()
+# 
 
-
-# In[7]:
+print('loss is.......: %6.2f'%loss_f)
 
 
 # prediction on test set
 with torch.no_grad():
-    # set return_std = False if standard deviation is not needed 
-    test_mean,test_std = model.predict(test_x,return_std=True)
-
+    # set return_std = False if standard deviation is not needed
+    test_mean3 = model3.predict(test_x,return_std=False)
+    
 
 
 print('######################################')
-noise = model.likelihood.noise_covar.noise.item() * train_y.std()**2
+noise = model3.likelihood.noise_covar.noise.item() * train_y.std()**2
 print(f'The estimated noise parameter is {noise}')
 
 # print MSE
-mse = ( (test_y-test_mean)**2).mean()
+mse = ( (test_y-test_mean3)**2).mean()
 print('MSE : %5.3f'%mse.item())
 
+
 # print RRMSE
-rrmse = torch.sqrt(((test_y-test_mean)**2).mean()/((test_y-test_y.mean())**2).mean())
-print('RRMSE : %5.3f'%rrmse.item())
+rrmse = torch.sqrt(((test_y-test_mean3)**2).mean()/((test_y-test_y.mean())**2).mean())
+print('Test RRMSE with torch adam optimizer is: %5.3f'%rrmse.item())
 
-
-# The test RRMSE seems to be pretty good. We now plot the estimated latent variables for the levels of $r_w$ and $H_l$. 
-
-# In[ ]:
 
 
 
@@ -233,9 +202,15 @@ print('RRMSE : %5.3f'%rrmse.item())
 end_time = time.time()
 print(f'The total time in second is {end_time - start_time}')
 
-# plot latent values
-plot_latent.plot_ls(model, constraints_flag= True)
+#
+for loss in loss_hist:
+    plt.plot(loss[500:])
+plt.show()
 
-plt.plot(test_y, test_mean, 'ro')
+# plot latent values
+plot_latent.plot_ls(model3, constraints_flag= True)
+
+plt.plot(test_y, test_mean3, 'ro')
 plt.plot(test_y, test_y, 'b')
 plt.show()
+
