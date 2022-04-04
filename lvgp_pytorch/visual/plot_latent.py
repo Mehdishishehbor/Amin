@@ -12,10 +12,13 @@ def plot_ls(model, constraints_flag = True):
     # plot latent values
 
     zeta = torch.tensor(model.zeta, dtype = torch.float64)
-    A = model.nn_model.weight.detach()
+    #A = model.nn_model.weight.detach()
     perm = model.perm
     levels = model.num_levels_per_var
-    positions = torch.matmul(zeta, A.T)   # this gives the position of each combination in latent space
+    #positions = torch.matmul(zeta, A.T)   # this gives the position of each combination in latent space
+
+    positions = model.nn_model(zeta)
+    positions = positions.detach()
 
     # applying the constrains
     if constraints_flag:

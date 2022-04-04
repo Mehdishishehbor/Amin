@@ -51,6 +51,7 @@ class LMGP(GPR):
         noise:float=1e-4,
         fix_noise:bool=True,
         lb_noise:float=1e-8,
+        NN_layers:list = []
     ) -> None:
 
 
@@ -105,11 +106,15 @@ class LMGP(GPR):
 
         # MAPPING
         self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim, type='one-hot')
-        nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
+        #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
         # Now we add the weigths to the gpytorch module class LMGP 
-        self.register_parameter('lm', nn_model.weight)
-        self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
-        self.nn_model = nn_model
+
+        model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
+
+        #self.register_parameter('lm', nn_model.weight)
+        #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
+        
+        self.nn_model = model_temp
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
 
@@ -136,12 +141,11 @@ class LMGP(GPR):
         for name, param in self.named_parameters():
             yield name, param
     
-    def LMMAPPING(self, num_features:int, type = 'Linear', lv_dim = 2):
+    def LMMAPPING(self, num_features:int, type = 'Linear',lv_dim = 2):
 
         if type == 'Linear':
             in_feature = num_features
             out_feature = lv_dim
-
             lm = torch.nn.Linear(in_feature, out_feature, bias = False)
             return lm
 
@@ -202,3 +206,50 @@ class LMGP(GPR):
 
 
             return x_one_hot
+
+from torch import nn
+import torch.nn.functional as F 
+
+class FFNN(nn.Module):
+    def __init__(self, lmgp, input_size, num_classes, layers):
+        super(FFNN, self).__init__()
+        # Our first linear layer take input_size, in this case 784 nodes to 50
+        # and our second linear layer takes 50 to the num_classes we have, in
+        # this case 10.
+        self.hidden_num = len(layers)
+        if self.hidden_num > 0:
+            self.fci = nn.Linear(input_size, layers[0]) 
+            lmgp.register_parameter('fci', self.fci.weight)
+            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='fci')
+
+            for i in range(1,self.hidden_num):
+                #self.h = nn.Linear(neuran[i-1], neuran[i])
+                setattr(self, 'h' + str(i), nn.Linear(layers[i-1], layers[i]))
+                lmgp.register_parameter('h'+str(i), getattr(self, 'h' + str(i)).weight )
+                lmgp.register_prior(name = 'latent_prior'+str(i), prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='h'+str(i))
+            
+            self.fce = nn.Linear(layers[-1], num_classes)
+            lmgp.register_parameter('fce', self.fce.weight)
+            lmgp.register_prior(name = 'latent_prior_fce', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='fce')
+        else:
+            self.fci = nn.Linear(input_size, num_classes, bias = False)
+            lmgp.register_parameter('fci', self.fci.weight)
+            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='fci')
+
+
+    def forward(self, x):
+        """
+        x here is the mnist images and we run it through fc1, fc2 that we created above.
+        we also add a ReLU activation function in between and for that (since it has no parameters)
+        I recommend using nn.functional (F)
+        """
+        if self.hidden_num > 0:
+            x = F.relu(self.fci(x))
+            for i in range(1,self.hidden_num):
+                #x = F.relu(self.h(x))
+                x = F.relu( getattr(self, 'h' + str(i))(x) )
+            
+            x = self.fce(x)
+        else:
+            x = self.fci(x)
+        return x

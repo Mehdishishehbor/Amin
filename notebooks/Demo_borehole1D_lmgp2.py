@@ -40,7 +40,7 @@ from typing import Dict
 from lvgp_pytorch.visual import plot_latent
 
 
-noise_flag = 1
+noise_flag = 0
 
 # start timing
 start_time = time.time()
@@ -160,6 +160,7 @@ model2 = LMGP(
     quant_index=config.quant_index,
     num_levels_per_var=list(config.num_levels.values()),
     quant_correlation_class="RBFKernel",
+    NN_layers= [2,2,2,2]
 ).double()
 
 
