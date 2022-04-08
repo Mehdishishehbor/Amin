@@ -102,7 +102,7 @@ class LMGP(GPR):
         self.num_levels_per_var = num_levels_per_var
         self.lv_dim = lv_dim
 
-        temp = self.transform_categorical(x=torch.tensor(train_x[:,self.qual_index], dtype=torch.int64), type='one-hot')
+        temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64), type='one-hot')
 
         # MAPPING
         self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim, type='one-hot')
@@ -118,7 +118,7 @@ class LMGP(GPR):
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
 
-        temp= self.transform_categorical(x=torch.tensor(x[:,self.qual_index], dtype=torch.int64), type='one-hot')
+        temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64), type='one-hot')
 
         embeddings = self.nn_model(temp.double())
 
@@ -244,10 +244,10 @@ class FFNN(nn.Module):
         I recommend using nn.functional (F)
         """
         if self.hidden_num > 0:
-            x = F.relu(self.fci(x))
+            x = torch.tanh(self.fci(x))
             for i in range(1,self.hidden_num):
                 #x = F.relu(self.h(x))
-                x = F.relu( getattr(self, 'h' + str(i))(x) )
+                x = torch.tanh( getattr(self, 'h' + str(i))(x) )
             
             x = self.fce(x)
         else:

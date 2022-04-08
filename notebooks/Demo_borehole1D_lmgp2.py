@@ -117,7 +117,7 @@ config
 
 
 # generate 100 samples
-set_seed(1)
+set_seed(555)
 num_samples = 100
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples)
@@ -160,7 +160,7 @@ model2 = LMGP(
     quant_index=config.quant_index,
     num_levels_per_var=list(config.num_levels.values()),
     quant_correlation_class="RBFKernel",
-    NN_layers= [2,2,2,2]
+    NN_layers= [10]
 ).double()
 
 
