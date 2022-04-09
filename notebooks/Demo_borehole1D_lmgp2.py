@@ -104,6 +104,9 @@ Tl = NumericalVariable(name='T_l',lower=63.1,upper=116)
 L = NumericalVariable(name='L',lower=1120,upper=1680)
 K_w = NumericalVariable(name='K_w',lower=9855,upper=12045)
 
+#L = CategoricalVariable(name='L',levels=np.linspace(1120,1680,5))
+#K_w = CategoricalVariable(name='K_w', levels=np.linspace(9855,12045,5))
+
 r_w = CategoricalVariable(name='r_w',levels=np.linspace(0.05,0.15,5))
 H_l = CategoricalVariable(name='H_l',levels=np.linspace(700,820,5))
 config.add_inputs([r,Tu,Hu,Tl,L,K_w,r_w,H_l])
@@ -160,7 +163,7 @@ model2 = LMGP(
     quant_index=config.quant_index,
     num_levels_per_var=list(config.num_levels.values()),
     quant_correlation_class="RBFKernel",
-    NN_layers= [10]
+    NN_layers= []
 ).double()
 
 
