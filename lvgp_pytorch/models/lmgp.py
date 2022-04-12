@@ -234,7 +234,11 @@ class FFNN(nn.Module):
         else:
             self.fci = nn.Linear(input_size, num_classes, bias = False)
             lmgp.register_parameter('fci', self.fci.weight)
-            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='fci')
+            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0,5.), param_or_closure='fci')
+            #lmgp.sample_from_prior('latent_prior_fci')
+            #lmgp.pyro_sample_from_prior()
+
+
 
 
     def forward(self, x):

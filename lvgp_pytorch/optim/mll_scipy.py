@@ -242,8 +242,9 @@ def fit_model_scipy(
 
     if theta0_list is None:
         theta0_list = [likobj.pack_parameters()]
-        if num_restarts > 0:
-            theta0_list.extend([_sample_from_prior(model) for _ in range(num_restarts)])
+        if num_restarts > -1:
+            theta0_list.extend([_sample_from_prior(model) for _ in range(num_restarts+1)])
+            theta0_list.pop(0)
     
     # Output - Contains either optimize result objects or exceptions
     set_loky_pickler("dill") 

@@ -170,7 +170,8 @@ model2 = LMGP(
 # optimize noise successively
 nll_inc_tuned,opt_history = noise_tune(
     model2, 
-    num_restarts = 0 # number of restarts in the initial iteration
+    num_restarts = 5,
+    add_prior=True # number of restarts in the initial iteration
 )
 
 # 
