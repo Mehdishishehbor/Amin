@@ -106,15 +106,17 @@ class LMGP(GPR):
 
         # MAPPING
         self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim, type='one-hot')
+        
         #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
-        # Now we add the weigths to the gpytorch module class LMGP 
-
-        model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
-
         #self.register_parameter('lm', nn_model.weight)
         #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
+        #self.nn_model = nn_model
+
+        # Now we add the weigths to the gpytorch module class LMGP 
         
+        model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
         self.nn_model = model_temp
+
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
 
@@ -234,7 +236,7 @@ class FFNN(nn.Module):
         else:
             self.fci = nn.Linear(input_size, num_classes, bias = False)
             lmgp.register_parameter('fci', self.fci.weight)
-            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0,5.), param_or_closure='fci')
+            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0,1), param_or_closure='fci')
             #lmgp.sample_from_prior('latent_prior_fci')
             #lmgp.pyro_sample_from_prior()
 
