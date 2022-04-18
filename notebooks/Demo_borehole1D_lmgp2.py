@@ -155,6 +155,15 @@ from scipy.io import savemat
 savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 
+X = train_x[...,config.quant_index]
+x_mean = X.mean(dim=-2, keepdim=True)
+x_std = X.std(dim=-2, keepdim=True) + 1e-6 # prevent dividing by 0
+X = (X - x_mean) / x_std
+train_x[...,config.quant_index] = X
+
+test_x[...,config.quant_index] = (test_x[...,config.quant_index] - x_mean)/ x_std
+
+
 set_seed(4)
 model2 = LMGP(
     train_x=train_x,
@@ -171,7 +180,7 @@ model2 = LMGP(
 nll_inc_tuned,opt_history = noise_tune(
     model2, 
     num_restarts = 5,
-    add_prior=True # number of restarts in the initial iteration
+    add_prior=False # number of restarts in the initial iteration
 )
 
 # 
