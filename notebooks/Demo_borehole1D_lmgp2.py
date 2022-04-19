@@ -31,7 +31,7 @@ from lmgp_pytorch.visual import plot_latent
 noise_flag = 0
 noise_std = 3.0
 add_prior_flag = False
-num_minimize_init = 10
+num_minimize_init = 1
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = False
@@ -181,8 +181,11 @@ print(f'The total time in second is {end_time - start_time}')
 # plot latent values
 plot_latent.plot_ls(model2, constraints_flag= True)
 
+plt.figure(figsize=(8,6))
 plt.plot(test_y, test_mean2, 'ro')
 plt.plot(test_y, test_y, 'b')
+plt.xlabel(r'Y_True')
+plt.ylabel(r'Y_predict')
 plt.show()
 
 

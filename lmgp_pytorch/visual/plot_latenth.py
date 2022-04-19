@@ -25,7 +25,7 @@ def plot_ls(model, constraints_flag = True):
         positions = constrains(positions)
 
 
-    fig,axs = plt.subplots(1, len(levels),figsize=(12,6))
+    fig = plt.figure(figsize=(8,6))
     colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
 
     # loop over the number of variables
@@ -34,14 +34,15 @@ def plot_ls(model, constraints_flag = True):
         for i in range(levels[j]):
             index = torch.where(perm[:,j] == i) 
             col = list(map(lambda x: colors[x], np.ones(index[0].numpy().shape) * i))
-            axs[j].scatter(positions[index][:,0], positions[index][:,1], label = 'level' + str(i+1), c = col, s = (i+1) * 50)
-            axs[j].set_title('Variable ' + str(j), fontsize = 15)
-            axs[j].set_xlabel(r'$z_1$', fontsize = 15)
-            axs[j].set_ylabel(r'$z_2$', fontsize = 15)
-            axs[j].legend()
-
+            plt.scatter(positions[index][:,0], positions[index][:,1], label = 'level' + str(i+1), c = col)
+            plt.title('Multifidelity', fontsize = 15)
+            plt.xlabel(r'$z_1$', fontsize = 15)
+            plt.ylabel(r'$z_2$', fontsize = 15)
+            plt.legend()
+            
+        
         fig.tight_layout()
-
+    plt.autoscale()
 
 def constrains(z):
     n = z.shape[0]

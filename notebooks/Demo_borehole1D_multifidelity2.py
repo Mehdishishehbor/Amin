@@ -25,13 +25,13 @@ from lmgp_pytorch.utils.input_space import InputSpace
 
 from typing import Dict
 
-from lmgp_pytorch.visual import plot_latent
+from lmgp_pytorch.visual import plot_latenth
 
 ###############Parameters########################
 noise_flag = 0
 noise_std = 3.0
 add_prior_flag = False
-num_minimize_init = 10
+num_minimize_init = 1
 qual_index = [10]
 quant_index= list(range(10))
 level_sets = [4]
@@ -129,10 +129,13 @@ end_time = time.time()
 print(f'The total time in second is {end_time - start_time}')
 
 # plot latent values
-#plot_latent.plot_ls(model2, constraints_flag= True)
+plot_latenth.plot_ls(model2, constraints_flag= True)
 
+plt.figure(figsize=(8, 6))
 plt.plot(test_y, test_mean2, 'ro')
 plt.plot(test_y, test_y, 'b')
+plt.xlabel(r'Y_True')
+plt.ylabel(r'Y_predict')
 plt.show()
 
 

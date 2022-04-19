@@ -51,7 +51,7 @@ class LMGP(GPR):
         noise:float=1e-4,
         fix_noise:bool=True,
         lb_noise:float=1e-8,
-        NN_layers:list = []
+        NN_layers:list = [], 
     ) -> None:
 
 
