@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 from joblib import dump,Parallel,delayed
 
-from lvgp_pytorch.models import LVGPR
-from lvgp_pytorch.optim import fit_model_scipy
-from lvgp_pytorch.optim.mll_noise_tune import noise_tune
-from lvgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
-from lvgp_pytorch.utils.input_space import InputSpace
+from lmgp_pytorch.models import LVGPR
+from lmgp_pytorch.optim import fit_model_scipy
+from lmgp_pytorch.optim.mll_noise_tune import noise_tune
+from lmgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
+from lmgp_pytorch.utils.input_space import InputSpace
 
 # functions
 import functions
