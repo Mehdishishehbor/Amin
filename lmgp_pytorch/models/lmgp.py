@@ -197,8 +197,9 @@ class LMGP(GPR):
 
         if type == 'one-hot':
             # categorical should start from 0
-            if x[:,0].min() != 0 or x[:,1].min() != 0:
-                x = x -1
+            for ii in range(x.shape[-1]):
+                if x[...,ii].min() != 0:
+                    x[...,ii] -= x[...,ii].min()
             
             x_one_hot = []
             for i in range(x.size()[1]):

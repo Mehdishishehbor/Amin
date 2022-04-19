@@ -30,14 +30,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-from lvgp_pytorch.models import LVGPR, LMGP
-from lvgp_pytorch.optim import fit_model_torch
-from lvgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
-from lvgp_pytorch.utils.input_space import InputSpace
+from lmgp_pytorch.models import LVGPR, LMGP
+from lmgp_pytorch.optim import fit_model_torch
+from lmgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
+from lmgp_pytorch.utils.input_space import InputSpace
 
 from typing import Dict
 
-from lvgp_pytorch.visual import plot_latent
+from lmgp_pytorch.visual import plot_latent
 
 noise_flag = 1
 

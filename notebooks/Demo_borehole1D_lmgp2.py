@@ -1,22 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # LVGP regresssion demonstration
+# # LMGP regresssion demonstration
 # 
-# In this example, we will demonstrate training and analyzing standard LVGP models on the borehole dataset. The metric used to assess the test performance is the relative root mean squared error (RRMSE), which is given by
-# 
-# $$
-# \mathrm{RRMSE} = \sqrt{
-#    \frac{\sum_{i=1}^{N}\left(y_i-\widehat{y}_i\right)^2}{\sum_{i=1}^{N} \left(y_i-\overline{y}\right)^2}
-# },   
-# $$
-# 
-# where $y_i$ and $\widehat{y}_i$ are respectively the true and predicted response for the $i^\mathrm{th}$ test sample, and $\overline{y}$ is the mean of the true test responses.
-
-# In[1]:
 
 
-from pdb import Restart
 import torch
 import math
 import random
@@ -39,8 +27,17 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latent
 
-
+###############Parameters########################
 noise_flag = 0
+noise_std = 3.0
+add_prior_flag = False
+num_minimize_init = 10
+num_samples_train = 100
+num_samples_test = 10000
+save_mat_flag = False
+#################################################
+
+
 
 # start timing
 start_time = time.time()
@@ -83,18 +80,14 @@ config.add_inputs([r,Tu,Hu,Tl,L,K_w,r_w,H_l])
 config
 
 
-# We will generate 100 random samples to be used as training data and separately 1000 random samples to be used as test data.
 
-# In[4]:
-
-
+#######################################################################
 # generate 100 samples
 set_seed(1)
-num_samples = 100
 train_x = torch.from_numpy(
-    config.random_sample(np.random,num_samples)
+    config.random_sample(np.random,num_samples_train)
 )
-train_y = [None]*num_samples
+train_y = [None]*num_samples_train
 
 for i,x in enumerate(train_x):
     train_y[i] = borehole(config.get_dict_from_array(x.numpy()))
@@ -104,11 +97,10 @@ train_y = torch.tensor(train_y).double()
 if noise_flag == 1:
     train_y += torch.randn(train_y.size()) * 3.0**2
 
-
 # generate 1000 test samples
-num_samples = 10000
-test_x = torch.from_numpy(config.random_sample(np.random,num_samples))
-test_y = [None]*num_samples
+num_samples_test = 10000
+test_x = torch.from_numpy(config.random_sample(np.random,num_samples_test))
+test_y = [None]*num_samples_test
 
 for i,x in enumerate(test_x):
     test_y[i] = borehole(config.get_dict_from_array(x.numpy()))
@@ -120,8 +112,9 @@ if noise_flag == 1:
     test_y += torch.randn(test_y.size()) * 3.0**2
 
 # ## save .mat files
-from scipy.io import savemat
-savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
+if save_mat_flag:
+    from scipy.io import savemat
+    savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 '''
 X = train_x[...,config.quant_index]
@@ -142,7 +135,8 @@ model2 = LMGP(
     quant_index=config.quant_index,
     num_levels_per_var=list(config.num_levels.values()),
     quant_correlation_class="RBFKernel",
-    NN_layers= []
+    NN_layers= [],
+    fix_noise= True
 ).double()
 
 LMGP.reset_parameters
@@ -150,14 +144,14 @@ LMGP.reset_parameters
 # optimize noise successively
 nll_inc_tuned,opt_history = noise_tune(
     model2, 
-    num_restarts = 10,
-    add_prior=False # number of restarts in the initial iteration
+    num_restarts = num_minimize_init,
+    add_prior=add_prior_flag # number of restarts in the initial iteration
 )
 
 # 
 print('NLL obtained from noise tuning strategy.......: %6.2f'%nll_inc_tuned)
 
-# prediction on test set
+################################# prediction on test set ########################################
 with torch.no_grad():
     # set return_std = False if standard deviation is not needed
     test_mean2 = model2.predict(test_x,return_std=False, include_noise = True)
@@ -165,7 +159,7 @@ with torch.no_grad():
 
 
 print('######################################')
-noise = model2.likelihood.noise_covar.noise.item() * train_y.std()**2
+noise = model2.likelihood.noise_covar.noise.item() * model2.y_std**2
 print(f'The estimated noise parameter is {noise}')
 
 # print MSE

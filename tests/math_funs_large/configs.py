@@ -1,6 +1,6 @@
 import numpy as np
-from lvgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
-from lvgp_pytorch.utils.input_space import InputSpace
+from lmgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
+from lmgp_pytorch.utils.input_space import InputSpace
 
 def rosenbrock():
     config = InputSpace()
