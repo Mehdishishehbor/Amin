@@ -30,14 +30,14 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-from lvgp_pytorch.models import LVGPR, LMGP
-from lvgp_pytorch.optim import fit_model_scipy,noise_tune
-from lvgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
-from lvgp_pytorch.utils.input_space import InputSpace
+from lmgp_pytorch.models import LVGPR, LMGP
+from lmgp_pytorch.optim import fit_model_scipy,noise_tune
+from lmgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
+from lmgp_pytorch.utils.input_space import InputSpace
 
 from typing import Dict
 
-from lvgp_pytorch.visual import plot_latent
+from lmgp_pytorch.visual import plot_latent
 
 
 noise_flag = 0
@@ -56,43 +56,12 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
-# ## Generating the training and test sets
-# 
-# The borehole function is given by
-# 
-# $$
-# 2\pi T_u\left(H_u-H_l\right)\left(
-#     \log\left(\frac{r}{r_w}\right)\left(
-#         1+ 2\frac{LT_u}{\log\left(r/r_w\right)r_w^2K_w} + \frac{T_u}{T_l}
-#     \right)
-# \right)^{-1}.
-# $$
-
-# In[2]:
-
-
 def borehole(params:Dict)->float:
     numerator = 2*math.pi*params['T_u']*(params['H_u']-params['H_l'])
     den_term1 = math.log(params['r']/params['r_w'])
     den_term2 = 1+ 2*params['L']*params['T_u']/(den_term1*params['r_w']**2*params['K_w']) +         params['T_u']/params['T_l']
     
     return numerator/den_term1/den_term2
-
-
-# All 8 inputs are numerical. Similar to [Zhang et al. (2020)](https://doi.org/10.1080/00401706.2019.1638834), we discretize $r_w$ and $H_l$ over their domains to have 5 levels each.
-# 
-# We will be using the `lvgp_pytorch.utils.InputSpace` utility class to 
-# 
-# 1. generating training and test data
-# 2. transforming the inputs into the format required by `LVGPR`:
-#     - numerical/integer inputs are scaled to [0,1] (with/without log transform). 
-#     - categorical inputs are encoded as integers 0,...,L-1
-# 3. transforming the array format back to the original scale for obtaining the response
-# 
-# 
-# We will now create the `InputSpace` object and add the associated variables.
-
-# In[3]:
 
 
 # configuration space
