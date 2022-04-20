@@ -24,7 +24,7 @@ class Rough_RBF(RBFKernel):
             or params.get("last_dim_is_batch", False)
             or trace_mode.on()
         ):
-            ten_power_omega_sqrt = self.lengthscale.sqrt() * 0.01
+            ten_power_omega_sqrt = self.lengthscale.sqrt()
             x1_ = x1.mul(ten_power_omega_sqrt)
             x2_ = x2.mul(ten_power_omega_sqrt)
             return self.covar_dist(

@@ -29,7 +29,7 @@ from lmgp_pytorch.visual import plot_latent
 
 ###############Parameters########################
 noise_flag = 1
-noise_std = 3.0
+noise_std = 0.0
 add_prior_flag = True
 num_minimize_init = 10
 num_samples_train = 100
@@ -137,25 +137,25 @@ model2 = LMGP(
     num_levels_per_var=list(config.num_levels.values()),
     quant_correlation_class= quant_kernel,
     NN_layers= [],
-    fix_noise= True
+    fix_noise= False
 ).double()
 
 LMGP.reset_parameters
 
 # optimize noise successively
-nll_inc_tuned,opt_history = noise_tune(
+reslist,opt_history = fit_model_scipy(
     model2, 
     num_restarts = num_minimize_init,
     add_prior=add_prior_flag # number of restarts in the initial iteration
 )
 
 # 
-print('NLL obtained from noise tuning strategy.......: %6.2f'%nll_inc_tuned)
-print(f"noise_history.......: {opt_history['noise_history']}")
+#print(reslist)
+#print(opt_history[-1])
 ################################# prediction on test set ########################################
 with torch.no_grad():
     # set return_std = False if standard deviation is not needed
-    test_mean2 = model2.predict(test_x,return_std=False, include_noise = True)
+    test_mean2, std = model2.predict(test_x,return_std=True, include_noise = True)
     
 
 
