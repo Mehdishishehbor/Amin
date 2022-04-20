@@ -35,7 +35,7 @@ num_minimize_init = 1
 qual_index = [10]
 quant_index= list(range(10))
 level_sets = [4]
-file_name = './multifidelity_no_noise.mat'
+file_name = './multifidelity_large_noise.mat'
 predict_fidelity = 2
 save_mat_flag = False
 

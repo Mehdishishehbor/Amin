@@ -27,7 +27,6 @@ from ..utils.transforms import softplus,inv_softplus
 from typing import List,Optional
 
 
-
 class LMGP(GPR):
     """The latent Map GP regression model (LMGP) which extends GPs to handle categorical inputs.
 
@@ -75,7 +74,7 @@ class LMGP(GPR):
             quant_kernel = quant_correlation_class(
                 ard_num_dims=len(quant_index),
                 active_dims=lv_dim+torch.arange(len(quant_index)),
-                lengthscale_constraint=Positive(transform=torch.exp,inv_transform=torch.log)
+                lengthscale_constraint= Positive(transform=torch.exp,inv_transform=torch.log)
             )
             quant_kernel.register_prior(
                 'lengthscale_prior',MollifiedUniformPrior(math.log(0.1),math.log(10)),'raw_lengthscale'
