@@ -54,6 +54,9 @@ class LMGP(GPR):
     ) -> None:
 
         quant_correlation_class_name = quant_correlation_class
+
+        if quant_correlation_class_name == 'Rough_RBF':
+            quant_correlation_class = 'RBFKernel'
         if len(qual_index) > 0:
             qual_kernel = kernels.RBFKernel(
                 active_dims=torch.arange(lv_dim)
@@ -76,13 +79,13 @@ class LMGP(GPR):
                 quant_kernel = quant_correlation_class(
                     ard_num_dims=len(quant_index),
                     active_dims=lv_dim+torch.arange(len(quant_index)),
-                    lengthscale_constraint= None #Positive(transform= lambda x:torch.pow(10,x),inv_transform=torch.log10)
+                    lengthscale_constraint= Positive(transform= torch.exp,inv_transform= torch.log)
                 )
             elif quant_correlation_class_name == 'Rough_RBF':
                 quant_kernel = quant_correlation_class(
                     ard_num_dims=len(quant_index),
                     active_dims=lv_dim+torch.arange(len(quant_index)),
-                    lengthscale_constraint= Positive(transform= lambda x:torch.pow(10,x),inv_transform=torch.log10)
+                    lengthscale_constraint= Positive(transform= lambda x: torch.pow(10,-x/2),inv_transform= lambda x: -2*torch.log10(x))
                 )
 
 
@@ -90,12 +93,12 @@ class LMGP(GPR):
             if quant_correlation_class_name == 'RBFKernel':
                 
                 quant_kernel.register_prior(
-                    'lengthscale_prior',MollifiedUniformPrior(math.log(0.1),math.log(10)),'raw_lengthscale'
+                    'lengthscale_prior',NormalPrior(-2.0,3.0),'raw_lengthscale'
                 )
                 
             elif quant_correlation_class_name == 'Rough_RBF':
                 quant_kernel.register_prior(
-                    'lengthscale_prior',NormalPrior(-2.0,2.0),'raw_lengthscale'
+                    'lengthscale_prior',NormalPrior(-2.0,3.0),'raw_lengthscale'
                 )
             
             if len(qual_index) > 0:

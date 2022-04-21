@@ -22,6 +22,7 @@ from lmgp_pytorch.models import LVGPR, LMGP
 from lmgp_pytorch.optim import fit_model_scipy,noise_tune
 from lmgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
 from lmgp_pytorch.utils.input_space import InputSpace
+from lmgp_pytorch.optim import noise_tune2
 
 from typing import Dict
 
@@ -35,7 +36,7 @@ num_minimize_init = 10
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = False
-quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
+quant_kernel = 'RBFKernel' #'RBFKernel' #'Rough_RBF'
 #################################################
 
 
@@ -143,7 +144,7 @@ model2 = LMGP(
 LMGP.reset_parameters
 
 # optimize noise successively
-nll_inc_tuned,opt_history = noise_tune(
+nll_inc_tuned,opt_history = noise_tune2(
     model2, 
     num_restarts = num_minimize_init,
     add_prior=add_prior_flag # number of restarts in the initial iteration

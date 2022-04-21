@@ -21,3 +21,7 @@ in the forward method in lmgp. Cuarrently, the latent map dimensions are the fir
 
 ## Note 2
 Note that the paramters are coming from the priors distribution. In our matlab code, we have upper and lower bounds for the paramters and the paramters are coming from the sobol sets. I think for MLE, we should use the same approach. For Bayesian, obviously we need priors. If we add the prios in MLE -> MAP, we also get a good result.
+
+# Note 3
+Added a kernel similar to matlab called Rough_RBF. It is not clear why this works well with scipy but not with continuation. With Continuation, both RBF and rough_RBF gives me the same results.
+With the new Kernel, the scipy is significantly improved. No need to do continuation.
