@@ -136,12 +136,12 @@ def noise_tune2(
         t += 1
         initial_noise_var_new = initial_noise_var
         if t == 1:
-            noises = [initial_noise_var_new/np.sqrt(10/t**2)**i for i in range(int(16/t))]
+            noises = [initial_noise_var_new/np.sqrt(10/t**2)**i for i in range(int(20/t))]
         else:
             if index >= 2 and index < len(history['noise_history'])-2:
-                noises = np.linspace(history['noise_history'][index-2], history['noise_history'][index+2], 20)
-                initial_noise_var = history['noise_history'][index-2]
-                model.load_state_dict(old_state_dict[index-2])
+                noises = np.linspace(history['noise_history'][index-1], history['noise_history'][index+2], 20)
+                initial_noise_var = history['noise_history'][index-1]
+                model.load_state_dict(old_state_dict[index-1])
             elif index >= 1 and index < len(history['noise_history'])-1:
                 noises = np.linspace(history['noise_history'][index-1], history['noise_history'][index+1], 20)
                 initial_noise_var = history['noise_history'][index-1]

@@ -148,6 +148,7 @@ nll_inc_tuned,opt_history = noise_tune2(
     model2, 
     num_restarts = num_minimize_init,
     add_prior=add_prior_flag,
+    initial_noise_var = 1,
     accuracy=1e-3 
 )
 

@@ -27,17 +27,20 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latenth
 
+from lmgp_pytorch.optim import noise_tune2
 ###############Parameters########################
 noise_flag = 0
 noise_std = 3.0
 add_prior_flag = False
-num_minimize_init = 1
+num_minimize_init = 5
 qual_index = [10]
 quant_index= list(range(10))
 level_sets = [4]
-file_name = './multifidelity_large_noise.mat'
-predict_fidelity = 2
+file_name = './multifidelity_big_noise.mat'
+predict_fidelity = 1
 save_mat_flag = False
+
+quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
 
 plt.rcParams['figure.dpi']=150
 plt.rcParams['font.family']='serif'
@@ -85,17 +88,19 @@ model2 = LMGP(
     qual_index= qual_index,
     quant_index= quant_index,
     num_levels_per_var= level_sets,
-    quant_correlation_class="RBFKernel",
-    NN_layers= []
+    quant_correlation_class= quant_kernel,
+    NN_layers= [],
 ).double()
 
 LMGP.reset_parameters
 
 # optimize noise successively
-nll_inc_tuned,opt_history = noise_tune(
+nll_inc_tuned,opt_history = noise_tune2(
     model2, 
     num_restarts = num_minimize_init,
-    add_prior=add_prior_flag # number of restarts in the initial iteration
+    add_prior=add_prior_flag,
+    initial_noise_var = 1,
+    accuracy=1e-3 
 )
 
 # 

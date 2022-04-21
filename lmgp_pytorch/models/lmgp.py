@@ -243,21 +243,21 @@ class FFNN(nn.Module):
         if self.hidden_num > 0:
             self.fci = nn.Linear(input_size, layers[0]) 
             lmgp.register_parameter('fci', self.fci.weight)
-            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='fci')
+            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0.,3.), param_or_closure='fci')
 
             for i in range(1,self.hidden_num):
                 #self.h = nn.Linear(neuran[i-1], neuran[i])
                 setattr(self, 'h' + str(i), nn.Linear(layers[i-1], layers[i]))
                 lmgp.register_parameter('h'+str(i), getattr(self, 'h' + str(i)).weight )
-                lmgp.register_prior(name = 'latent_prior'+str(i), prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='h'+str(i))
+                lmgp.register_prior(name = 'latent_prior'+str(i), prior=gpytorch.priors.NormalPrior(0.,3.), param_or_closure='h'+str(i))
             
             self.fce = nn.Linear(layers[-1], num_classes)
             lmgp.register_parameter('fce', self.fce.weight)
-            lmgp.register_prior(name = 'latent_prior_fce', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='fce')
+            lmgp.register_prior(name = 'latent_prior_fce', prior=gpytorch.priors.NormalPrior(0.,3.), param_or_closure='fce')
         else:
             self.fci = nn.Linear(input_size, num_classes, bias = False)
             lmgp.register_parameter('fci', self.fci.weight)
-            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0,1), param_or_closure='fci')
+            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0,3), param_or_closure='fci')
             #lmgp.sample_from_prior('latent_prior_fci')
             #lmgp.pyro_sample_from_prior()
 

@@ -18,14 +18,22 @@ def plot_ls(model, constraints_flag = True):
     #positions = torch.matmul(zeta, A.T)   # this gives the position of each combination in latent space
 
     positions = model.nn_model(zeta)
-    positions = positions.detach()
+    if positions.ndim > 2:
+        positions = positions.mean(axis = 0)
+    else:
+        positions = positions.detach()
+
+    if positions.ndim > 2:
+        positions = positions.mean(axis = 0) 
 
     # applying the constrains
     if constraints_flag:
         positions = constrains(positions)
 
 
-    fig = plt.figure(figsize=(8,6))
+    positions = positions.detach().numpy()
+
+    fig,axs = plt.subplots(figsize=(8,6))
     colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
 
     # loop over the number of variables
@@ -34,15 +42,22 @@ def plot_ls(model, constraints_flag = True):
         for i in range(levels[j]):
             index = torch.where(perm[:,j] == i) 
             col = list(map(lambda x: colors[x], np.ones(index[0].numpy().shape) * i))
-            plt.scatter(positions[index][:,0], positions[index][:,1], label = 'level' + str(i+1), c = col)
-            plt.title('Multifidelity', fontsize = 15)
-            plt.xlabel(r'$z_1$', fontsize = 15)
-            plt.ylabel(r'$z_2$', fontsize = 15)
-            plt.legend()
-            
-        
-        fig.tight_layout()
-    plt.autoscale()
+            axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1), c = col)
+            #axs.set_title('Variable ' + str(j), fontsize = 15)
+            axs.set_xlabel(r'$z_1$', fontsize = 15)
+            axs.set_ylabel(r'$z_2$', fontsize = 15)
+            axs.legend()
+            tempxi = np.min(positions[...,0])-0.1 * (np.abs(np.min(positions[...,0])) +1)
+            tempxx = np.max(positions[...,0]) + 0.1 * (np.abs(np.max(positions[...,0])) +1)
+            tempyi = np.min(positions[...,1])-0.1 * (np.abs(np.min(positions[...,1])) +1)
+            tempyx = np.max(positions[...,1]) + 0.1 * (np.abs(np.max(positions[...,1])) +1)
+            axs.set_xlim(tempxi, tempxx)
+            axs.set_ylim(tempyi, tempyx)
+
+            #fig.tight_layout()
+    #plt.tight_layout()
+    #plt.autoscale()
+
 
 def constrains(z):
     n = z.shape[0]
