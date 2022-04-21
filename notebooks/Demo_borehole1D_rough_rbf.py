@@ -32,11 +32,11 @@ from lmgp_pytorch.visual import plot_latent
 noise_flag = 1
 noise_std = 3.0
 add_prior_flag = True
-num_minimize_init = 10
+num_minimize_init = 1
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = False
-quant_kernel = 'RBFKernel' #'RBFKernel' #'Rough_RBF'
+quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
 #################################################
 
 
@@ -147,7 +147,8 @@ LMGP.reset_parameters
 nll_inc_tuned,opt_history = noise_tune2(
     model2, 
     num_restarts = num_minimize_init,
-    add_prior=add_prior_flag # number of restarts in the initial iteration
+    add_prior=add_prior_flag,
+    accuracy=1e-3 
 )
 
 # 

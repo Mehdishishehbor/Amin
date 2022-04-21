@@ -85,7 +85,7 @@ class LMGP(GPR):
                 quant_kernel = quant_correlation_class(
                     ard_num_dims=len(quant_index),
                     active_dims=lv_dim+torch.arange(len(quant_index)),
-                    lengthscale_constraint= Positive(transform= lambda x: torch.pow(10,-x/2),inv_transform= lambda x: -2*torch.log10(x))
+                    lengthscale_constraint= Positive(transform= lambda x: 2.0**(-0.5) * torch.pow(10,-x/2),inv_transform= lambda x: -2.0*torch.log10(x/2.0))
                 )
 
 
@@ -93,12 +93,12 @@ class LMGP(GPR):
             if quant_correlation_class_name == 'RBFKernel':
                 
                 quant_kernel.register_prior(
-                    'lengthscale_prior',NormalPrior(-2.0,3.0),'raw_lengthscale'
+                    'lengthscale_prior', MollifiedUniformPrior(math.log(0.1),math.log(10)),'raw_lengthscale'
                 )
                 
             elif quant_correlation_class_name == 'Rough_RBF':
                 quant_kernel.register_prior(
-                    'lengthscale_prior',NormalPrior(-2.0,3.0),'raw_lengthscale'
+                    'lengthscale_prior',NormalPrior(-3.0,3.0),'raw_lengthscale'
                 )
             
             if len(qual_index) > 0:

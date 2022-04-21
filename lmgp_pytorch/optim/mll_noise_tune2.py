@@ -49,6 +49,7 @@ def noise_tune2(
     initial_noise_var:float=1,
     red_factor:float=math.sqrt(10),
     options:Dict={},n_jobs:int=1,
+    accuracy = 1e-3
 )-> Tuple[float,Dict]:
     """Sequentially optimize the log-likelihood of a standard GP model for a decreasing
     sequence of noise variances.
@@ -128,81 +129,106 @@ def noise_tune2(
     if model.likelihood.raw_noise.requires_grad:
         model.likelihood.raw_noise.requires_grad_(False)
     
-    model.likelihood.initialize(**{'noise':initial_noise_var})
-        
-    noise_list = []
-    nll_list = []
-    loocv_list = []
-    reslist_list = []
-    
-    old_crit = math.inf
+    t = 0    
     theta0_list = None
-    
-    power = np.arange(0.0,-8.0, -0.5)
-    noises = 10 ** power
+    while True:
 
-    old_state_dict = {}
+        t += 1
+        initial_noise_var_new = initial_noise_var
+        if t == 1:
+            noises = [initial_noise_var_new/np.sqrt(10/t**2)**i for i in range(int(16/t))]
+        else:
+            if index >= 2 and index < len(history['noise_history'])-2:
+                noises = np.linspace(history['noise_history'][index-2], history['noise_history'][index+2], 20)
+                initial_noise_var = history['noise_history'][index-2]
+                model.load_state_dict(old_state_dict[index-2])
+            elif index >= 1 and index < len(history['noise_history'])-1:
+                noises = np.linspace(history['noise_history'][index-1], history['noise_history'][index+1], 20)
+                initial_noise_var = history['noise_history'][index-1]
+                model.load_state_dict(old_state_dict[index-1])
+            else:
+                model.load_state_dict(old_state_dict[index])
+                return history['nll_history'][index],history
+                
 
-    for i in range(len(noises)):
-        model.train()
-        model.likelihood.initialize(**{'noise':noises[i]})
-        old_state_dict[i] = deepcopy(model.state_dict())
-        
-        reslist,nll = fit_model_scipy(
-            model,add_prior,num_restarts=num_restarts,theta0_list=theta0_list,options=options
-        )
-        
-        if all([isinstance(res,RuntimeError) or isinstance(res,TypeError) for res in reslist]):
-            # some error
-            break
-        
-        noise_list.append(model.likelihood.noise.item())
-        nll_list.append(nll)
-        loocv_list.append(loocv_rrmse(model))
-        reslist_list.append(reslist)
-        crit = nll if criterion.upper()=='NLL' else loocv_list[-1]
-        
-        '''
-        if crit >= old_crit:
-            model.load_state_dict(old_state_dict)
-            best_crit = old_crit
-            if red_factor > 2:
-                red_factor = 2
-                model.likelihood.initialize(**{'noise':noise_list[-2]/red_factor})
-                continue
-            break
-        '''
+        noise_list = []
+        nll_list = []
+        loocv_list = []
+        reslist_list = []
+        t += 1
+        old_crit = math.inf
 
-        theta0_list = []
-        for res in reslist:
-            if isinstance(res,Exception):
-                continue
-            if len(theta0_list) > 0:
-                dists = distance_matrix(res.x.reshape(1,-1),np.row_stack(theta0_list)).ravel()
-                if np.any(dists < 1e-2*res.x.shape[0]):
-                    continue
+        old_state_dict = {}
 
-            theta0_list.append(res.x)
-        
-        try:
-            model.likelihood.initialize(**{'noise':noise_list[-1]/red_factor})
-        except:
-            # violates constraints
-            try:
-                model.likelihood.initialize(**{'noise':noise_list[-1]/red_factor+1e-10})
-            except:
+
+        for i in range(len(noises)):
+            model.train()
+            model.likelihood.initialize(**{'noise':noises[i]})
+            old_state_dict[i] = deepcopy(model.state_dict())
+            
+            reslist,nll = fit_model_scipy(
+                model,add_prior,num_restarts=num_restarts,theta0_list=theta0_list,options=options
+            )
+            
+            if all([isinstance(res,RuntimeError) or isinstance(res,TypeError) for res in reslist]):
+                # some error
                 break
-        old_crit = crit
+            
+            noise_list.append(model.likelihood.noise.item())
+            nll_list.append(nll)
+            loocv_list.append(loocv_rrmse(model))
+            reslist_list.append(reslist)
+            crit = nll if criterion.upper()=='NLL' else loocv_list[-1]
+            
+            '''
+            if crit >= old_crit:
+                model.load_state_dict(old_state_dict)
+                best_crit = old_crit
+                if red_factor > 2:
+                    red_factor = 2
+                    model.likelihood.initialize(**{'noise':noise_list[-2]/red_factor})
+                    continue
+                break
+            '''
 
-    history = {
+            theta0_list = []
+            for res in reslist:
+                if isinstance(res,Exception):
+                    continue
+                if len(theta0_list) > 0:
+                    dists = distance_matrix(res.x.reshape(1,-1),np.row_stack(theta0_list)).ravel()
+                    if np.any(dists < 1e-2*res.x.shape[0]):
+                        continue
+
+                theta0_list.append(res.x)
+            
+            try:
+                model.likelihood.initialize(**{'noise':noise_list[-1]/red_factor})
+            except:
+                # violates constraints
+                try:
+                    model.likelihood.initialize(**{'noise':noise_list[-1]/red_factor+1e-10})
+                except:
+                    break
+            old_crit = crit
+
+        history = {
         'noise_history':noise_list,
         'nll_history':nll_list,
         'loocv_history':loocv_list,
         'optimization_history':reslist_list
-    }
+        }
 
-    index = np.argmin(history['nll_history'])
-    noise_optimum = history['noise_history'][index]
-    model.load_state_dict(old_state_dict[index])
+        index = np.argmin(history['nll_history'])
 
-    return noise_optimum,history
+
+        print('Finished the for loop')
+
+
+        if np.abs(initial_noise_var_new - history['noise_history'][index]) < accuracy:
+            model.load_state_dict(old_state_dict[index])
+            break
+
+        print(history['nll_history'])
+
+    return history['nll_history'][index],history
