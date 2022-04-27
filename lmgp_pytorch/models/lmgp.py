@@ -26,6 +26,10 @@ from ..priors import MollifiedUniformPrior
 from ..utils.transforms import softplus,inv_softplus
 from typing import List,Optional
 
+import numpy as np
+from pandas import DataFrame
+from category_encoders import BinaryEncoder
+
 
 class LMGP(GPR):
     """The latent Map GP regression model (LMGP) which extends GPs to handle categorical inputs.
@@ -50,7 +54,9 @@ class LMGP(GPR):
         noise:float=1e-4,
         fix_noise:bool=True,
         lb_noise:float=1e-8,
-        NN_layers:list = [], 
+        NN_layers:list = [],
+        encoding_type = 'one-hot',
+        uniform_encoding_columns = 2 
     ) -> None:
 
         quant_correlation_class_name = quant_correlation_class
@@ -121,11 +127,13 @@ class LMGP(GPR):
                 # latent variable mapping
         self.num_levels_per_var = num_levels_per_var
         self.lv_dim = lv_dim
-
-        temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64), type='one-hot')
+        self.uniform_encoding_columns = uniform_encoding_columns
+        self.encoding_type = encoding_type
+        self.perm =[]
 
         # MAPPING
-        self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim, type='one-hot')
+        self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
+        temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64))
         
         #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
         #self.register_parameter('lm', nn_model.weight)
@@ -140,7 +148,7 @@ class LMGP(GPR):
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
 
-        temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64), type='one-hot')
+        temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64))
 
         embeddings = self.nn_model(temp.double())
 
@@ -177,8 +185,7 @@ class LMGP(GPR):
     def zeta_matrix(self,
         num_levels:int,
         lv_dim:int,
-        batch_shape=torch.Size(),
-        type = 'one-hot'
+        batch_shape=torch.Size()
     ) -> None:
 
         if any([i == 1 for i in num_levels]):
@@ -197,30 +204,28 @@ class LMGP(GPR):
                     'Setting it to %s in place of %s' %(level-1,lv_dim)
                 )
     
-        if type == 'one-hot':
-            from itertools import product
-            levels = []
-            for l in num_levels:
-                levels.append(torch.arange(l))
+        from itertools import product
+        levels = []
+        for l in num_levels:
+            levels.append(torch.arange(l))
 
-            perm = list(product(*levels))
-            perm = torch.tensor(perm, dtype=torch.int64)
-            return self.transform_categorical(perm), perm
-        else:
-            raise ValueError('Invaid type')
+        perm = list(product(*levels))
+        perm = torch.tensor(perm, dtype=torch.int64)
+        self.perm=perm
+        return self.transform_categorical(perm), perm
 
     
     def transform_categorical(self, x:torch.Tensor,
-        batch_shape=torch.Size(),
-        type = 'one-hot'
+        batch_shape=torch.Size()
         ) -> None:
 
-        if type == 'one-hot':
-            # categorical should start from 0
-            for ii in range(x.shape[-1]):
-                if x[...,ii].min() != 0:
-                    x[...,ii] -= x[...,ii].min()
+        # categorical should start from 0
+        for ii in range(x.shape[-1]):
+            if x[...,ii].min() != 0:
+                x[...,ii] -= x[...,ii].min()
             
+
+        if self.encoding_type == 'one-hot':
             x_one_hot = []
             for i in range(x.size()[1]):
                 x_one_hot.append( torch.nn.functional.one_hot(x[:,i]) )
@@ -228,7 +233,48 @@ class LMGP(GPR):
             x_one_hot = torch.concat(x_one_hot, axis=1)
 
 
-            return x_one_hot
+        elif self.encoding_type  == 'uniform':
+
+            temp2=np.random.uniform(0,1,(len(self.perm), self.uniform_encoding_columns))
+            dict={}
+            dict2={}
+
+            for i in range(0,self.perm.shape[0]):
+                dict[tuple((self.perm[i,:]).numpy())]=temp2[i,:]
+            
+            for i in range(0,x.shape[0]):
+                dict2[i]=dict[tuple((x[i]).numpy())]
+            
+            x_one_hot= torch.from_numpy(np.array(list(dict2.values())))
+                    
+        elif self.encoding_type  == 'binary':
+            dict={}
+            dict2={}
+            dict3={}
+            dict4={}
+            dict3[0]=[]
+            dict2[0]=[]
+            for i in range(0,self.perm.shape[0]):
+                dict[tuple((self.perm[i,:]).numpy())]=str(i)
+                dict3[0].append(str(i))
+            
+            data= DataFrame.from_dict(dict3)
+            encoder= BinaryEncoder()
+            data_encoded=(encoder.fit_transform(data)).to_numpy()
+
+            for i in range(0,self.perm.shape[0]):
+                dict4[str(i)]= data_encoded[i]
+
+            for i in range(0,x.shape[0]):
+                dict2[i]=dict4[dict[tuple((x[i]).numpy())]]
+
+            x_one_hot= torch.from_numpy(np.array(list(dict2.values())))
+        else:
+            raise ValueError ('Invalid type')
+
+                        
+        return x_one_hot
+
 
 from torch import nn
 import torch.nn.functional as F 

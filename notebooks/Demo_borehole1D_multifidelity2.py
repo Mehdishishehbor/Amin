@@ -36,7 +36,7 @@ num_minimize_init = 12
 qual_index = [10]
 quant_index= list(range(10))
 level_sets = [4]
-file_name = './multifidelity_big_noise.mat'
+file_name = './multifidelity_no_noise.mat'
 predict_fidelity = 1
 save_mat_flag = False
 
@@ -98,6 +98,8 @@ model2 = LMGP(
     num_levels_per_var= level_sets,
     quant_correlation_class= quant_kernel,
     NN_layers= [],
+    encoding_type='one-hot',
+    uniform_encoding_columns = 2
 ).double()
 
 LMGP.reset_parameters
