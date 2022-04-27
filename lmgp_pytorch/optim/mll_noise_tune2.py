@@ -136,14 +136,14 @@ def noise_tune2(
         t += 1
         initial_noise_var_new = initial_noise_var
         if t == 1:
-            noises = [initial_noise_var_new/np.sqrt(10/t**2)**i for i in range(int(20/t))]
+            noises = [initial_noise_var_new/(10**i) for i in range(int(10/t))]
         else:
             if index >= 2 and index < len(history['noise_history'])-2:
-                noises = np.linspace(history['noise_history'][index-1], history['noise_history'][index+2], 20)
+                noises = np.linspace(history['noise_history'][index-1], history['noise_history'][index+1], 10)
                 initial_noise_var = history['noise_history'][index-1]
                 model.load_state_dict(old_state_dict[index-1])
             elif index >= 1 and index < len(history['noise_history'])-1:
-                noises = np.linspace(history['noise_history'][index-1], history['noise_history'][index+1], 20)
+                noises = np.linspace(history['noise_history'][index-1], history['noise_history'][index+1], 10)
                 initial_noise_var = history['noise_history'][index-1]
                 model.load_state_dict(old_state_dict[index-1])
             else:
@@ -225,10 +225,12 @@ def noise_tune2(
         print('Finished the for loop')
 
 
+        print(history['nll_history'])
+
         if np.abs(initial_noise_var_new - history['noise_history'][index]) < accuracy:
             model.load_state_dict(old_state_dict[index])
             break
 
-        print(history['nll_history'])
+        
 
     return history['nll_history'][index],history

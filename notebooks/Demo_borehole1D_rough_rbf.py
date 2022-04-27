@@ -29,10 +29,10 @@ from typing import Dict
 from lmgp_pytorch.visual import plot_latent
 
 ###############Parameters########################
-noise_flag = 1
-noise_std = 3.0
-add_prior_flag = True
-num_minimize_init = 1
+noise_flag = 0
+noise_std = 2.0
+add_prior_flag = False
+num_minimize_init = 10
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = False

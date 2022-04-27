@@ -32,11 +32,11 @@ from lmgp_pytorch.optim import noise_tune2
 noise_flag = 1
 noise_std = 3.0
 add_prior_flag = False
-num_minimize_init = 12
+num_minimize_init = 10
 qual_index = [10]
 quant_index= list(range(10))
 level_sets = [4]
-file_name = './multifidelity_no_noise.mat'
+file_name = './multifidelity_big_noise.mat'
 predict_fidelity = 1
 save_mat_flag = False
 

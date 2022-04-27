@@ -158,7 +158,7 @@ def _fit_model_from_state(likobj,theta0,jac,options):
                 method = 'L-BFGS-B',
                 jac=jac,
                 bounds=None,
-                options=options
+                options= options #{'gtol': 1e-07, 'norm': np.inf, 'eps': 1.4901161193847656e-08, 'maxiter': None, 'disp': False, 'return_all': False, 'finite_diff_rel_step': None}
             )
     except Exception as e:
         if isinstance(e,NotPSDError) or isinstance(e, NanError):
