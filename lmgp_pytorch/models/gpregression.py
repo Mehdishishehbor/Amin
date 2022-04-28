@@ -74,6 +74,8 @@ class GPR(ExactGP):
         noise_constraint=GreaterThan(lb_noise,transform=torch.exp,inv_transform=torch.log)
         likelihood = gpytorch.likelihoods.GaussianLikelihood(noise_constraint=noise_constraint)
 
+        #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4, rank = 0)
+
         # standardizing the response variable
         y_mean,y_std = train_y.mean(),train_y.std()
         train_y_sc = (train_y-y_mean)/y_std
