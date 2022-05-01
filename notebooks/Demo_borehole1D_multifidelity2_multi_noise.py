@@ -27,7 +27,7 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latenth
 
-from lmgp_pytorch.optim import noise_tune2
+from lmgp_pytorch.optim import noise_tune
 ###############Parameters########################
 noise_flag = 1
 noise_std = 3.0
@@ -68,18 +68,10 @@ train_y = torch.from_numpy(np.float64(train_y))
 test_x  = torch.from_numpy(np.float64(test_x))
 test_y  = torch.from_numpy(np.float64(test_y))
 
-
 meanx = train_x[:,:-1].mean(dim=-2, keepdim=True)
 stdx = train_x[:,:-1].std(dim=-2, keepdim=True) + 1e-6 # prevent dividing by 0
 train_x[:,:-1] = (train_x[:,:-1] - meanx) / stdx
 test_x[:,:-1] = (test_x[:,:-1] - meanx) / stdx
-
-'''
-min = train_x[:,:-1].min(axis = 0)
-max = train_x[:,:-1].max(axis = 0)
-train_x[:,:-1] = (train_x[:,:-1] - min[0]) / (max[0] - min[0])
-test_x[:,:-1] = (test_x[:,:-1] - min[0]) / (max[0] - min[0])
-'''
 
 train_y = train_y.reshape(-1,)
 test_y = test_y.reshape(-1,)
@@ -98,24 +90,19 @@ model2 = LMGP(
     num_levels_per_var= level_sets,
     quant_correlation_class= quant_kernel,
     NN_layers= [],
-    encoding_type='one-hot',
-    uniform_encoding_columns = 2
+    fix_noise= False
 ).double()
 
 LMGP.reset_parameters
 
 # optimize noise successively
-nll_inc_tuned,opt_history = noise_tune2(
+reslist,opt_history = fit_model_scipy(
     model2, 
     num_restarts = num_minimize_init,
-    add_prior=add_prior_flag,
-    initial_noise_var = 1,
-    accuracy=1e-3,
-    n_jobs= 1
+    add_prior=add_prior_flag, # number of restarts in the initial iteration
+    n_jobs= 8
 )
 
-# 
-print('NLL obtained from noise tuning strategy.......: %6.2f'%nll_inc_tuned)
 
 ################################# prediction on test set ########################################
 with torch.no_grad():

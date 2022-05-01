@@ -27,6 +27,10 @@ from ..priors import LogHalfHorseshoePrior,MollifiedUniformPrior
 from ..utils.transforms import softplus,inv_softplus
 from typing import List,Tuple,Union
 
+import lmgp_pytorch
+
+from lmgp_pytorch.likelihoods_noise.multifidelity import Multifidelity_likelihood
+
 class GPR(ExactGP):
     """Standard GP regression module for numerical inputs
 
@@ -72,9 +76,10 @@ class GPR(ExactGP):
         
         # initializing likelihood
         noise_constraint=GreaterThan(lb_noise,transform=torch.exp,inv_transform=torch.log)
-        likelihood = gpytorch.likelihoods.GaussianLikelihood(noise_constraint=noise_constraint)
+        
+        #likelihood = gpytorch.likelihoods.GaussianLikelihood(noise_constraint=noise_constraint)
 
-        #likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(num_tasks=4, rank = 0)
+        likelihood = Multifidelity_likelihood(noise_indices=[1], fidel_indices=train_x[:,-1], num_noises= 1)
 
         # standardizing the response variable
         y_mean,y_std = train_y.mean(),train_y.std()

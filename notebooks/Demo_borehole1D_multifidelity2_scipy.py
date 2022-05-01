@@ -32,7 +32,7 @@ from lmgp_pytorch.optim import noise_tune
 noise_flag = 1
 noise_std = 3.0
 add_prior_flag = False
-num_minimize_init = 12
+num_minimize_init = 7
 qual_index = [10]
 quant_index= list(range(10))
 level_sets = [4]
@@ -99,7 +99,8 @@ LMGP.reset_parameters
 reslist,opt_history = fit_model_scipy(
     model2, 
     num_restarts = num_minimize_init,
-    add_prior=add_prior_flag # number of restarts in the initial iteration
+    add_prior=add_prior_flag, # number of restarts in the initial iteration
+    n_jobs= 8
 )
 
 
@@ -111,7 +112,7 @@ with torch.no_grad():
 
 
 print('######################################')
-noise = model2.likelihood.noise_covar.noise.item() * model2.y_std**2
+noise = model2.likelihood.noise_covar.noise.detach() * model2.y_std**2
 print(f'The estimated noise parameter is {noise}')
 
 # print MSE

@@ -1,3 +1,4 @@
+from distutils.log import error
 from turtle import forward
 from gpytorch.likelihoods import _GaussianLikelihoodBase
 from gpytorch.likelihoods.noise_models import _HomoskedasticNoiseBase
@@ -10,7 +11,7 @@ from torch import Tensor
 
 class Multifidelity_likelihood(_GaussianLikelihoodBase):
 
-    def __init__(self, fidel_indices: Tensor , noise_indices: list, noise_prior = None, noise_constraint = None, num_noises = 1,
+    def __init__(self, fidel_indices: Tensor, noise_indices: list = [1], noise_prior = None, noise_constraint = None, num_noises = 1,
         learn_additional_noise = False, batch_shape = torch.Size(), **kwargs) -> None:
         
         noise_covar = Multifidelity_noise(noise_prior=noise_prior, 
@@ -19,6 +20,22 @@ class Multifidelity_likelihood(_GaussianLikelihoodBase):
 
         self.fidel_indices = fidel_indices
         self.noise_indices = noise_indices
+
+    @property
+    def noise(self) -> Tensor:
+        return self.noise_covar.noise
+
+    @noise.setter
+    def noise(self, value: Tensor) -> None:
+        self.noise_covar.initialize(noise=value)
+
+    @property
+    def raw_noise(self) -> Tensor:
+        return self.noise_covar.raw_noise
+
+    @raw_noise.setter
+    def raw_noise(self, value: Tensor) -> None:
+        self.noise_covar.initialize(raw_noise=value)
 
 
     def _shaped_noise_covar(self, base_shape: torch.Size, *params: Any, **kwargs: Any):
@@ -55,22 +72,41 @@ class Multifidelity_noise(_HomoskedasticNoiseBase):
 
         if len(fidel_indices) ==0 or fidel_indices is None:
             raise ValueError('You need to specify a list of indices for noise such as [1,3]')
-        # This contains a list of diagonal matrices with defined noise. Crates [batch * noise_size * n * n]
+        # This contains a list of diagonal matrices with defined noise. Crates [batch * 1 * noise_size * n * n]
         covar = super().forward(*params, shape= fidel_indices.shape, **kwargs)
 
-        if covar.shape[1] is not len(noise_indices):
-            raise ValueError('Something is wrong, number of noise and indices are not the same')
+        if covar.dim() > 2:
+            if covar.shape[1] is not len(noise_indices):
+                raise ValueError('Something is wrong, number of noise and indices are not the same')
+
+        if covar.dim() == 4: # no batch
+            covar = covar.squeeze(0)
+        elif covar.dim() == 5: # for batch
+            covar = covar.squeeze(1) 
+
 
         # This part is for categorical_indices
         temp = ConstantDiagLazyTensor(torch.tensor([0.0]), len(fidel_indices))
         for i in range(len(noise_indices)):
             diag = DiagLazyTensor( (fidel_indices == noise_indices[i]).type(torch.int32) )
-            temp += diag * covar[:,i,...]
+            if covar.dim() == 4: # batch
+                temp += diag * covar[:,i,...]
+            
+            elif covar.dim() == 3: # 
+                temp += diag * covar[i,...]
+
+            elif covar.dim() == 2:
+                temp += diag * covar
+            else:
+                raise ValueError('Covar is 1D? why?')
         
+
+        
+
         return temp
 
 
-
+'''
 if __name__ == '__main__':
     multi_likelihood = Multifidelity_likelihood(num_noises=3)
     multi_noise = Multifidelity_noise(num_noises=2)
@@ -79,3 +115,4 @@ if __name__ == '__main__':
     noise_indices = [1, 3]
     covar = multi_noise(fidel_indices = fidel_indices, noise_indices = noise_indices)
     aa = 1
+'''
