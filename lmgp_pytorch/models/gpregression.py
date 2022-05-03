@@ -27,6 +27,10 @@ from ..priors import LogHalfHorseshoePrior,MollifiedUniformPrior
 from ..utils.transforms import softplus,inv_softplus
 from typing import List,Tuple,Union
 
+import botorch
+from botorch.models.utils import gpt_posterior_settings
+from botorch.posteriors.gpytorch import GPyTorchPosterior
+
 class GPR(ExactGP):
     """Standard GP regression module for numerical inputs
 
@@ -84,6 +88,8 @@ class GPR(ExactGP):
         # registering mean and std of the raw response
         self.register_buffer('y_mean',y_mean)
         self.register_buffer('y_std',y_std)
+
+        self.num_outputs = 1
 
         # initializing and fixing noise
         if noise is not None:
@@ -164,6 +170,24 @@ class GPR(ExactGP):
                 return out_mean,out_std
 
             return out_mean
+
+    
+    def posterior(
+        self,
+        X,
+        output_indices = None,
+        observation_noise= False,
+        posterior_transform= None,
+        **kwargs,
+    ):
+
+        self.eval()
+        with gpt_posterior_settings():
+        
+            if observation_noise:
+                return GPyTorchPosterior(mvn = self.likelihood(self(X)))
+            else:
+                return GPyTorchPosterior(mvn = self(X))
     
     def reset_parameters(self) -> None:
         """Reset parameters by sampling from prior
