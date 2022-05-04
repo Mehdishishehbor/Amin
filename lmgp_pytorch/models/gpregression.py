@@ -176,13 +176,13 @@ class GPR(ExactGP):
         self,
         X,
         output_indices = None,
-        observation_noise= False,
+        observation_noise= True,
         posterior_transform= None,
         **kwargs,
     ):
 
         self.eval()
-        with gpt_posterior_settings():
+        with gpt_posterior_settings() and gptsettings.fast_computations(log_prob=False):
         
             if observation_noise:
                 return GPyTorchPosterior(mvn = self.likelihood(self(X)))
