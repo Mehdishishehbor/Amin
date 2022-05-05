@@ -88,6 +88,7 @@ class GPR(ExactGP):
         # registering mean and std of the raw response
         self.register_buffer('y_mean',y_mean)
         self.register_buffer('y_std',y_std)
+        self.register_buffer('y_scaled',train_y_sc)
 
         self.num_outputs = 1
 
@@ -183,7 +184,7 @@ class GPR(ExactGP):
 
         self.eval()
         with gpt_posterior_settings() and gptsettings.fast_computations(log_prob=False):
-        
+    
             if observation_noise:
                 return GPyTorchPosterior(mvn = self.likelihood(self(X)))
             else:
