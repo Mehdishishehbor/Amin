@@ -59,6 +59,14 @@ class LMGP(GPR):
         uniform_encoding_columns = 2 
     ) -> None:
 
+        if len(qual_index) == 1 and num_levels_per_var[0] < 2:
+            temp = quant_index.copy()
+            temp.append(qual_index[0])
+            quant_index = temp.copy()
+            qual_index = []
+            lv_dim = 0
+
+
         quant_correlation_class_name = quant_correlation_class
 
         if quant_correlation_class_name == 'Rough_RBF':
@@ -121,41 +129,55 @@ class LMGP(GPR):
         # register index and transforms
         self.register_buffer('quant_index',torch.tensor(quant_index))
         self.register_buffer('qual_index',torch.tensor(qual_index))
-
+        
 
         # latent variable mapping
-                # latent variable mapping
+        # latent variable mapping
         self.num_levels_per_var = num_levels_per_var
         self.lv_dim = lv_dim
         self.uniform_encoding_columns = uniform_encoding_columns
         self.encoding_type = encoding_type
         self.perm =[]
 
-        # MAPPING
-        self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
-        temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64))
-        
-        #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
-        #self.register_parameter('lm', nn_model.weight)
-        #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
-        #self.nn_model = nn_model
+        if len(qual_index) > 0:
 
-        # Now we add the weigths to the gpytorch module class LMGP 
-        
-        model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
-        self.nn_model = model_temp
+            # MAPPING
+            self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
+            temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64))
+            
+            #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
+            #self.register_parameter('lm', nn_model.weight)
+            #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
+            #self.nn_model = nn_model
+
+            # Now we add the weigths to the gpytorch module class LMGP 
+            
+            model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
+            self.nn_model = model_temp
 
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
 
-        temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64))
+        nd_flag = 0
+        if x.dim() > 2:
+            xsize = x.shape
+            x = x.reshape(-1, x.shape[-1])
+            nd_flag = 1
 
-        embeddings = self.nn_model(temp.double())
+        if len(self.qual_index) > 0:
+            
+            temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64))
 
-        if len(self.quant_index) > 0:
-            x = torch.cat([embeddings,x[...,self.quant_index]],dim=-1)
-        else:
-            x = embeddings
+            embeddings = self.nn_model(temp.double())
+
+            if len(self.quant_index) > 0:
+                x = torch.cat([embeddings,x[...,self.quant_index]],dim=-1)
+            else:
+                x = embeddings
+
+
+        if nd_flag == 1:
+            x = x.reshape(*xsize[:-1], -1)
 
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
@@ -190,14 +212,12 @@ class LMGP(GPR):
 
         if any([i == 1 for i in num_levels]):
             raise ValueError('Categorical variable has only one level!')
-        elif any([i == 2 for i in num_levels]):
-            raise ValueError('Binary categorical variables should not be supplied')
 
         if lv_dim == 1:
             raise RuntimeWarning('1D latent variables are difficult to optimize!')
         
         for level in num_levels:
-            if lv_dim > level - 1:
+            if lv_dim > level - 0:
                 lv_dim = min(lv_dim, level-1)
                 raise RuntimeWarning(
                     'The LV dimension can atmost be num_levels-1. '
