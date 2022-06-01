@@ -30,7 +30,7 @@ from lmgp_pytorch.visual import plot_latenth
 
 from lmgp_pytorch.optim import noise_tune
 
-from lmgp_pytorch.test_functions.multi_fidelity import wing_h, wing_l1, wing_l2, wing_l3
+from lmgp_pytorch.test_functions.multi_fidelity import  multi_fidelity_wing
 ###############Parameters########################
 noise_flag = 1
 noise_std = 3.0
@@ -61,14 +61,8 @@ def set_seed(seed):
 #----------------------------- Read Data-----------------------
 # ## save .mat files
 
-Xh, yh = wing_h(n = 50)
-Xl1, yl1 = wing_h(n = 100)
-Xl2, yl2 = wing_h(n = 100)
-Xl3, yl3 = wing_h(n = 100)
-
-X = np.vstack([Xh, Xl1, Xl2, Xl3])
-y = np.vstack([yh, yl1, yl2, yl3])
-
+train_x, train_y = multi_fidelity_wing({'h': 50,'l1': 100,'l2': 100,'l3': 100 })
+test_x, test_y = multi_fidelity_wing({'h': 10000,'l1': 10000,'l2': 10000,'l3': 10000 })
 
 
 train_x = torch.from_numpy(np.float64(train_x))

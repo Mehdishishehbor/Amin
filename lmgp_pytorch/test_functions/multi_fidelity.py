@@ -11,18 +11,17 @@ def wing_h(parameters=None, n=100):
     out_flag = 0
     if parameters is None:
         sobolset = Sobol(d=dx)
-        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n,:]
+        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n, :]
         parameters = scale(parameters, l_bounds=l_bound, u_bounds=u_bound)
         out_flag = 1
     if type(parameters) != np.ndarray:
         parameters = np.array(parameters)
-    
     Sw = parameters[..., 0]
     Wfw = parameters[..., 1]
     A = parameters[..., 2]
     Gama = parameters[..., 3] * (np.pi/180.0)
     q = parameters[..., 4]
-    lamb = parameters[..., 5] 
+    lamb = parameters[..., 5]
     tc = parameters[..., 6]
     Nz = parameters[..., 7]
     Wdg = parameters[..., 8]
@@ -45,18 +44,17 @@ def wing_l1(parameters=None, n=100):
     out_flag = 0
     if parameters is None:
         sobolset = Sobol(d=dx)
-        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n,:]
+        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n, :]
         parameters = scale(parameters, l_bounds=l_bound, u_bounds=u_bound)
         out_flag = 1
     if type(parameters) != np.ndarray:
         parameters = np.array(parameters)
-    
     Sw = parameters[..., 0]
     Wfw = parameters[..., 1]
     A = parameters[..., 2]
     Gama = parameters[..., 3] * (np.pi/180.0)
     q = parameters[..., 4]
-    lamb = parameters[..., 5] 
+    lamb = parameters[..., 5]
     tc = parameters[..., 6]
     Nz = parameters[..., 7]
     Wdg = parameters[..., 8]
@@ -71,6 +69,7 @@ def wing_l1(parameters=None, n=100):
     else:
         return y
 
+
 def wing_l2(parameters=None, n=100):
     dx = 10
     l_bound = [150, 220, 6, -10, 16, 0.5, 0.08, 2.5, 1700, 0.025]
@@ -78,18 +77,17 @@ def wing_l2(parameters=None, n=100):
     out_flag = 0
     if parameters is None:
         sobolset = Sobol(d=dx)
-        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n,:]
+        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n, :]
         parameters = scale(parameters, l_bounds=l_bound, u_bounds=u_bound)
         out_flag = 1
     if type(parameters) != np.ndarray:
         parameters = np.array(parameters)
-    
     Sw = parameters[..., 0]
     Wfw = parameters[..., 1]
     A = parameters[..., 2]
     Gama = parameters[..., 3] * (np.pi/180.0)
     q = parameters[..., 4]
-    lamb = parameters[..., 5] 
+    lamb = parameters[..., 5]
     tc = parameters[..., 6]
     Nz = parameters[..., 7]
     Wdg = parameters[..., 8]
@@ -104,6 +102,7 @@ def wing_l2(parameters=None, n=100):
     else:
         return y
 
+
 def wing_l3(parameters=None, n=100):
     dx = 10
     l_bound = [150, 220, 6, -10, 16, 0.5, 0.08, 2.5, 1700, 0.025]
@@ -111,18 +110,17 @@ def wing_l3(parameters=None, n=100):
     out_flag = 0
     if parameters is None:
         sobolset = Sobol(d=dx)
-        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n,:]
+        parameters = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n, :]
         parameters = scale(parameters, l_bounds=l_bound, u_bounds=u_bound)
         out_flag = 1
     if type(parameters) != np.ndarray:
         parameters = np.array(parameters)
-    
     Sw = parameters[..., 0]
     Wfw = parameters[..., 1]
     A = parameters[..., 2]
     Gama = parameters[..., 3] * (np.pi/180.0)
     q = parameters[..., 4]
-    lamb = parameters[..., 5] 
+    lamb = parameters[..., 5]
     tc = parameters[..., 6]
     Nz = parameters[..., 7]
     Wdg = parameters[..., 8]
@@ -136,3 +134,33 @@ def wing_l3(parameters=None, n=100):
         return parameters, y
     else:
         return y
+
+
+def multi_fidelity_wing(params={'h': 50, 'l1': 100, 'l2': 100, 'l3': 100}):
+    n = sum([i for i in params.values()])
+    X_list = []
+    y_list = []
+    for level, num in params.items():
+        if level == 'h' and num > 0:
+            X, y = wing_h(n=num)
+            X = np.hstack([X, np.ones(num).reshape(-1, 1)])
+            X_list.append(X)
+            y_list.append(y)
+        elif level == 'l1' and num > 0:
+            X, y = wing_l1(n=num)
+            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 2])
+            X_list.append(X)
+            y_list.append(y)
+        elif level == 'l2' and num > 0:
+            X, y = wing_l2(n=num)
+            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 3])
+            X_list.append(X)
+            y_list.append(y)
+        elif level == 'l3' and num > 0:
+            X, y = wing_l3(n=num)
+            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 4])
+            X_list.append(X)
+            y_list.append(y)
+        else:
+            raise ValueError('Wrong label, should be h, l1, l2 or l3')
+    return np.vstack([*X_list]), np.hstack(y_list)
