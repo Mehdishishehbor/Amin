@@ -26,6 +26,13 @@ from joblib.externals.loky import set_loky_pickler
 from typing import Dict,List,Tuple,Optional,Union
 from copy import deepcopy
 
+from scipy.optimize import Bounds
+
+tkwargs = {
+    "dtype": torch.double,
+    "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
+}
+
 def marginal_log_likelihood(model,add_prior:bool):
     output = model(*model.train_inputs)
     out = model.likelihood(output).log_prob(model.train_targets)
@@ -68,7 +75,7 @@ class MLLObjective:
             (n,p) for n,p in self.model.named_parameters() if p.requires_grad
         ])
         
-        return np.concatenate([parameters[n].data.numpy().ravel() for n in parameters])
+        return np.concatenate([parameters[n].cpu().data.numpy().ravel() for n in parameters])
     
     def unpack_parameters(self, x:np.ndarray) -> torch.Tensor:
         """Convert hyperparameters specifed as a 1D array to a named parameter dictionary
@@ -88,7 +95,7 @@ class MLLObjective:
             param = x[i:i+param_len]
             # reshape according to this size, and cast to torch
             param = param.reshape(*self.param_shapes[n])
-            named_parameters[n] = torch.from_numpy(param)
+            named_parameters[n] = torch.from_numpy(param).to(**tkwargs)
             # update index
             i += param_len
         return named_parameters
@@ -99,7 +106,7 @@ class MLLObjective:
         grads = []
         for name,p in self.model.named_parameters():
             if p.requires_grad:
-                grad = p.grad.data.numpy()
+                grad = p.grad.cpu().data.numpy()
                 grads.append(grad.ravel())
         return np.concatenate(grads).astype(np.float64)
 
@@ -127,6 +134,8 @@ class MLLObjective:
         old_dict.update(state_dict)
         self.model.load_state_dict(old_dict)
         
+        #self.model.nn_model.fci.weight.data = self.unpack_parameters(x)['fci']
+
         # zero the gradient
         self.model.zero_grad()
         obj = -marginal_log_likelihood(self.model, self.add_prior) # negative sign to minimize
@@ -144,11 +153,43 @@ def _sample_from_prior(model) -> np.ndarray:
     for _,module,prior,closure,_ in model.named_priors():
         if not closure(module).requires_grad:
             continue
-        out.append(prior.expand(closure(module).shape).sample().numpy().ravel())
+        out.append(prior.expand(closure(module).shape).sample().cpu().numpy().ravel())
     
     return np.concatenate(out)
 
+
+def get_bounds(likobj, theta):
+
+    dic = likobj.unpack_parameters(theta)
+
+    minn = np.empty(0)
+    maxx = np.empty(0)
+    for name, values in dic.items():
+        if name == 'fci':
+            minn = np.concatenate( (minn,  np.repeat(-5.0, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( 5.0, values.numel()) ) )
+        elif name == 'likelihood.noise_covar.raw_noise':
+            minn = np.concatenate( (minn,  np.repeat(-np.inf, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( np.inf, values.numel()) ) )
+        elif name == 'mean_module.constant':
+            minn = np.concatenate( (minn,  np.repeat(-np.inf, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( np.inf, values.numel()) ) )
+        elif name == 'covar_module.raw_outputscale':
+            minn = np.concatenate( (minn,  np.repeat(-np.inf, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( np.inf, values.numel()) ) )
+        elif name == 'covar_module.base_kernel.kernels.1.raw_lengthscale':
+            minn = np.concatenate( (minn,  np.repeat(-10.0, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( 3.0, values.numel()) ) )
+
+    
+    return np.array(minn).reshape(-1,), np.array(maxx).reshape(-1,)
+
+
 def _fit_model_from_state(likobj,theta0,jac,options):
+
+    #min, max = get_bounds(likobj, theta0)
+    #bounds = Bounds(min, max)
+
     try:
         with gptsettings.fast_computations(log_prob=False):
             return minimize(
@@ -262,5 +303,8 @@ def fit_model_scipy(
     old_dict = deepcopy(model.state_dict())
     old_dict.update(likobj.unpack_parameters(theta_best))
     model.load_state_dict(old_dict)
+
+    if 'fci' in [name for name,p in model.named_parameters()]:
+        model.nn_model.fci.weight.data = old_dict['fci']
 
     return out,nlls_opt[best_idx]

@@ -71,7 +71,7 @@ class GPR(ExactGP, GPyTorchModel):
         correlation_kernel,
         noise:float=1e-4,
         fix_noise:bool=False,
-        lb_noise:float=1e-8,
+        lb_noise:float=1e-12,
     ) -> None:
         # check inputs
         if not torch.is_tensor(train_x):
@@ -136,7 +136,7 @@ class GPR(ExactGP, GPyTorchModel):
         )
         # register priors
         self.covar_module.register_prior(
-            'outputscale_prior',LogNormalPrior(0.,1.),'outputscale'
+            'outputscale_prior',LogNormalPrior(1e-6,1.),'outputscale'
         )
     
     def forward(self,x:torch.Tensor)->MultivariateNormal:

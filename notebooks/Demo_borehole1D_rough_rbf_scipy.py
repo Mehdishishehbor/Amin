@@ -27,15 +27,25 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latent
 
+from lmgp_pytorch.preprocessing.Normalize import standard
+from lmgp_pytorch.preprocessing.numericlevels import setlevels
+
+
+tkwargs = {
+    "dtype": torch.double,
+    "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
+}
+
+
 ###############Parameters########################
-noise_flag = 1
-noise_std = 3.0
+noise_flag = 0
+noise_std = 0.0
 add_prior_flag = True
-num_minimize_init = 1
+num_minimize_init = 25
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = False
-quant_kernel = 'RBFKernel' #'RBFKernel' #'Rough_RBF'
+quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
 #################################################
 
 
@@ -99,7 +109,6 @@ if noise_flag == 1:
     train_y += torch.randn(train_y.size()) * noise_std
 
 # generate 1000 test samples
-num_samples_test = 10000
 test_x = torch.from_numpy(config.random_sample(np.random,num_samples_test))
 test_y = [None]*num_samples_test
 
@@ -118,35 +127,34 @@ if save_mat_flag:
     savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 
-X = train_x[...,config.quant_index]
-xmin = X.min(axis=0)
-xmax = X.max(axis = 0)
-X = (X - xmin.values) / (xmax.values - xmin.values)
+train_x = setlevels(train_x, config.qual_index)
+test_x = setlevels(test_x, config.qual_index)
+train_x, test_x = standard(train_x, config.quant_index, test_x)
 
-train_x[...,config.quant_index] = X
+train_x = train_x.to(**tkwargs)
+train_y = train_y.to(**tkwargs)
+test_x = test_x.to(**tkwargs)
+test_y = test_y.to(**tkwargs)
 
-test_x[...,config.quant_index] = (test_x[...,config.quant_index] - xmin.values)/ (xmax.values - xmin.values)
-
-
-set_seed(4)
 model2 = LMGP(
-    train_x=train_x,
-    train_y=train_y,
+    train_x=train_x.to(**tkwargs),
+    train_y=train_y.to(**tkwargs),
     qual_index=config.qual_index,
     quant_index=config.quant_index,
     num_levels_per_var=list(config.num_levels.values()),
     quant_correlation_class= quant_kernel,
     NN_layers= [],
     fix_noise= False
-).double()
+).to(**tkwargs)
 
-LMGP.reset_parameters
+model2.reset_parameters
 
 # optimize noise successively
 reslist,opt_history = fit_model_scipy(
     model2, 
     num_restarts = num_minimize_init,
     add_prior=add_prior_flag # number of restarts in the initial iteration
+    , n_jobs = 8
 )
 
 # 
@@ -183,8 +191,8 @@ print(f'The total time in second is {end_time - start_time}')
 plot_latent.plot_ls(model2, constraints_flag= True)
 
 plt.figure(figsize=(8,6))
-plt.plot(test_y, test_mean2, 'ro')
-plt.plot(test_y, test_y, 'b')
+plt.plot(test_y.cpu().numpy(), test_mean2.cpu().numpy(), 'ro')
+plt.plot(test_y.cpu().numpy(), test_y.cpu().numpy(), 'b')
 plt.xlabel(r'Y_True')
 plt.ylabel(r'Y_predict')
 plt.show()

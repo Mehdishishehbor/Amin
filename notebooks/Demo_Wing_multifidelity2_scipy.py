@@ -29,6 +29,8 @@ from typing import Dict
 from lmgp_pytorch.visual import plot_latenth
 
 from lmgp_pytorch.optim import noise_tune
+
+from lmgp_pytorch.test_functions.multi_fidelity import wing_h, wing_l1, wing_l2, wing_l3
 ###############Parameters########################
 noise_flag = 1
 noise_std = 3.0
@@ -37,7 +39,6 @@ num_minimize_init = 12
 qual_index = [10]
 quant_index= list(range(10))
 level_sets = [4]
-file_name = './multifidelity_big_noise.mat'
 predict_fidelity = 1
 save_mat_flag = False
 
@@ -59,10 +60,16 @@ def set_seed(seed):
 
 #----------------------------- Read Data-----------------------
 # ## save .mat files
-from scipy.io import loadmat
-multifidelity_big_noise = loadmat(file_name)
 
-train_x, train_y, test_x, test_y = multifidelity_big_noise['x_train_all'], multifidelity_big_noise['y_train_all'], multifidelity_big_noise['x_val'], multifidelity_big_noise['y_val']
+Xh, yh = wing_h(n = 50)
+Xl1, yl1 = wing_h(n = 100)
+Xl2, yl2 = wing_h(n = 100)
+Xl3, yl3 = wing_h(n = 100)
+
+X = np.vstack([Xh, Xl1, Xl2, Xl3])
+y = np.vstack([yh, yl1, yl2, yl3])
+
+
 
 train_x = torch.from_numpy(np.float64(train_x))
 train_y = torch.from_numpy(np.float64(train_y))

@@ -14,6 +14,7 @@
 # software constitutes an implicit agreement to these terms. These terms and conditions 
 # are subject to change at any time without prior notice.
 
+from matplotlib import transforms
 import torch
 import math
 import gpytorch
@@ -29,6 +30,12 @@ from typing import List,Optional
 import numpy as np
 from pandas import DataFrame
 from category_encoders import BinaryEncoder
+
+
+tkwargs = {
+    "dtype": torch.double,
+    "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
+}
 
 
 class LMGP(GPR):
@@ -152,8 +159,8 @@ class LMGP(GPR):
 
             # Now we add the weigths to the gpytorch module class LMGP 
             
-            model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
-            self.nn_model = model_temp
+            model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers).to(**tkwargs)
+            self.nn_model = model_temp.to(**tkwargs)
 
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
@@ -166,9 +173,9 @@ class LMGP(GPR):
 
         if len(self.qual_index) > 0:
             
-            temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64))
+            temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64).to(tkwargs['device']))
 
-            embeddings = self.nn_model(temp.double())
+            embeddings = self.nn_model(temp.float().to(**tkwargs))
 
             if len(self.quant_index) > 0:
                 x = torch.cat([embeddings,x[...,self.quant_index]],dim=-1)
@@ -243,7 +250,9 @@ class LMGP(GPR):
         for ii in range(x.shape[-1]):
             if x[...,ii].min() != 0:
                 x[...,ii] -= x[...,ii].min()
-            
+                
+
+
 
         if self.encoding_type == 'one-hot':
             x_one_hot = []
