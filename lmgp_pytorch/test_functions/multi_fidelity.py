@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pyro import param
 from scipy.stats.qmc import Sobol, scale
+import math
+import torch
 
 
 def wing_h(parameters=None, n=100):
@@ -164,3 +166,15 @@ def multi_fidelity_wing(params={'h': 50, 'l1': 100, 'l2': 100, 'l3': 100}):
         else:
             raise ValueError('Wrong label, should be h, l1, l2 or l3')
     return np.vstack([*X_list]), np.hstack(y_list)
+
+
+def Augmented_braning(X):
+
+    t1 = (
+        X[..., 1]
+        - (5.1 / (4 * math.pi ** 2) - 0.1 * (1 - X[..., 2])) * X[..., 0] ** 2
+        + 5 / math.pi * X[..., 0]
+        - 6
+    )
+    t2 = 10 * (1 - 1 / (8 * math.pi)) * torch.cos(X[..., 0])
+    return t1 ** 2 + t2 + 10
