@@ -138,29 +138,29 @@ def wing_l3(parameters=None, n=100):
         return y
 
 
-def multi_fidelity_wing(params={'h': 50, 'l1': 100, 'l2': 100, 'l3': 100}):
+def multi_fidelity_wing_gen(params={'h': 50, 'l1': 100, 'l2': 100, 'l3': 100}):
     n = sum([i for i in params.values()])
     X_list = []
     y_list = []
     for level, num in params.items():
         if level == 'h' and num > 0:
             X, y = wing_h(n=num)
-            X = np.hstack([X, np.ones(num).reshape(-1, 1)])
+            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 0.0])
             X_list.append(X)
             y_list.append(y)
         elif level == 'l1' and num > 0:
             X, y = wing_l1(n=num)
-            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 2])
+            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 1.0])
             X_list.append(X)
             y_list.append(y)
         elif level == 'l2' and num > 0:
             X, y = wing_l2(n=num)
-            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 3])
+            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 2.0])
             X_list.append(X)
             y_list.append(y)
         elif level == 'l3' and num > 0:
             X, y = wing_l3(n=num)
-            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 4])
+            X = np.hstack([X, np.ones(num).reshape(-1, 1) * 3.0])
             X_list.append(X)
             y_list.append(y)
         else:
@@ -168,7 +168,34 @@ def multi_fidelity_wing(params={'h': 50, 'l1': 100, 'l2': 100, 'l3': 100}):
     return np.vstack([*X_list]), np.hstack(y_list)
 
 
-def Augmented_braning(X):
+
+def multi_fidelity_wing_value(input):
+
+    if type(input) == torch.Tensor:
+        input_copy = input.clone()
+    elif type(input) == np.ndarray:
+        input_copy = np.copy(input)
+    y_list = []
+    for X in input_copy:
+        if X[-1] == 0.0:
+            y_list.append(wing_h(parameters=X))
+        elif X[-1] == 1.0:
+            y_list.append(wing_l1(parameters=X))
+        elif X[-1] == 2.0:
+            y_list.append(wing_l2(parameters=X))
+        elif X[-1] == 3.0:
+            y_list.append(wing_l3(parameters=X))
+        else:
+            raise ValueError('Wrong label, should be h, l1, l2 or l3')
+    return torch.tensor(np.hstack(y_list))
+
+
+def Augmented_branin(input, negate = True, mapping = None):
+
+    X = input.clone()
+
+    if mapping is not None:
+        X[..., 2] = torch.tensor(list(map(lambda x: mapping[str(float(x))], X[..., 2]))).to(X)
 
     t1 = (
         X[..., 1]
@@ -177,4 +204,4 @@ def Augmented_braning(X):
         - 6
     )
     t2 = 10 * (1 - 1 / (8 * math.pi)) * torch.cos(X[..., 0])
-    return t1 ** 2 + t2 + 10
+    return -(t1 ** 2 + t2 + 10) if negate else (t1 ** 2 + t2 + 10)
