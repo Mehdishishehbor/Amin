@@ -159,7 +159,7 @@ class LMGP(GPR):
 
             # Now we add the weigths to the gpytorch module class LMGP 
             
-            model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers).to(**tkwargs)
+            model_temp = FFNN(self, input_size= sum(num_levels_per_var), num_classes=lv_dim, layers = NN_layers).to(**tkwargs)
             self.nn_model = model_temp.to(**tkwargs)
 
 
