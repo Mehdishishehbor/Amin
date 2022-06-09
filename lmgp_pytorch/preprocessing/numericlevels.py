@@ -11,12 +11,12 @@ def setlevels(X, qual_index):
     else:
         X = torch.tensor([*map(lambda m: list(set(sorted(X.tolist()))).index(m), X)])
     
-
-    X = X.astype(float)
+    if X.dtype == object:
+        X = X.astype(float)
 
     if type(X) == np.ndarray:
         X = torch.from_numpy(X)
         return X
     else:
-        X.to(temp)
+        return X.to(temp)
 
