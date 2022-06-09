@@ -3,7 +3,7 @@ import numpy as np
 
 def setlevels(X, qual_index):
     if type(X) == torch.Tensor:
-        temp = X.copy()
+        temp = X.clone()
     if X.ndim > 1:
         for j in qual_index:
             a = X[..., j]
