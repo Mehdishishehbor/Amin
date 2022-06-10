@@ -149,9 +149,7 @@ class LMGP(GPR):
         if len(qual_index) > 0:
 
             # MAPPING
-            self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
-            temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64))
-            
+            self.zeta, self.perm, self.perm_dict = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
             #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
             #self.register_parameter('lm', nn_model.weight)
             #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
@@ -239,7 +237,26 @@ class LMGP(GPR):
         perm = list(product(*levels))
         perm = torch.tensor(perm, dtype=torch.int64)
         self.perm=perm
-        return self.transform_categorical(perm), perm
+
+        #-------------Mapping-------------------------
+        perm_dic = {}
+        for i, row in enumerate(perm):
+            temp = str(row.tolist())
+            if temp not in perm_dic.keys():
+                perm_dic[temp] = i
+
+        #-------------One_hot_encoding------------------
+        for ii in range(perm.shape[-1]):
+            if perm[...,ii].min() != 0:
+                perm[...,ii] -= perm[...,ii].min()
+            
+        perm_one_hot = []
+        for i in range(perm.size()[1]):
+            perm_one_hot.append( torch.nn.functional.one_hot(perm[:,i]) )
+
+        perm_one_hot = torch.concat(perm_one_hot, axis=1)
+
+        return perm_one_hot, perm, perm_dic
 
     
     def transform_categorical(self, x:torch.Tensor,
@@ -247,12 +264,11 @@ class LMGP(GPR):
         ) -> None:
 
         # categorical should start from 0
+        '''
         for ii in range(x.shape[-1]):
             if x[...,ii].min() != 0:
                 x[...,ii] -= x[...,ii].min()
                 
-
-
 
         if self.encoding_type == 'one-hot':
             x_one_hot = []
@@ -260,6 +276,13 @@ class LMGP(GPR):
                 x_one_hot.append( torch.nn.functional.one_hot(x[:,i]) )
 
             x_one_hot = torch.concat(x_one_hot, axis=1)
+        '''
+
+        if self.encoding_type == 'one-hot':
+            index = [self.perm_dict[str(row.tolist())] for row in x]
+
+            return self.zeta[index,:]  
+
 
 
         elif self.encoding_type  == 'uniform':
