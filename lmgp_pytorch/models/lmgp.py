@@ -72,6 +72,8 @@ class LMGP(GPR):
             quant_index = temp.copy()
             qual_index = []
             lv_dim = 0
+        elif len(qual_index) == 0:
+            lv_dim = 0
 
 
         quant_correlation_class_name = quant_correlation_class
@@ -123,7 +125,7 @@ class LMGP(GPR):
                 )
             
             if len(qual_index) > 0:
-                correlation_kernel = qual_kernel*quant_kernel
+                correlation_kernel = qual_kernel*quant_kernel + qual_kernel + quant_kernel
             else:
                 correlation_kernel = quant_kernel
 
