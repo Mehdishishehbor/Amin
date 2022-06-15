@@ -28,6 +28,8 @@ from copy import deepcopy
 
 from scipy.optimize import Bounds
 
+from lmgp_pytorch.utils.interval_score import interval_score
+
 tkwargs = {
     "dtype": torch.double,
     "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
@@ -40,8 +42,8 @@ def marginal_log_likelihood(model,add_prior:bool):
         # add priors
         for _, module, prior, closure, _ in model.named_priors():
             out.add_(prior.log_prob(closure(module)).sum())
-
-    return out
+    score, accuracy = interval_score(output.mean + 1.96 * output.variance.sqrt(), output.mean - 1.96 * output.variance.sqrt(), model.y_scaled)
+    return out - 0.0 * score #- torch.exp(model.interval_alpha) * score
 
 class MLLObjective:
     """Helper class that wraps MLE/MAP objective function to be called by scipy.optimize.

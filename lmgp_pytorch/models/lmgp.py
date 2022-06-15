@@ -125,7 +125,7 @@ class LMGP(GPR):
                 )
             
             if len(qual_index) > 0:
-                correlation_kernel = qual_kernel*quant_kernel + qual_kernel + quant_kernel
+                correlation_kernel = qual_kernel*quant_kernel #+ qual_kernel + quant_kernel
             else:
                 correlation_kernel = quant_kernel
 
@@ -161,6 +161,20 @@ class LMGP(GPR):
             
             model_temp = FFNN(self, input_size= sum(num_levels_per_var), num_classes=lv_dim, layers = NN_layers).to(**tkwargs)
             self.nn_model = model_temp.to(**tkwargs)
+
+
+        # self.register_parameter(
+        #     name = 'interval_alpha',
+        #     parameter=torch.nn.Parameter(
+        #         torch.ones(1)
+        #     )
+        # )
+
+        # self.register_prior(
+        #     name='interval_alpha_prior',
+        #     prior=gpytorch.priors.NormalPrior(0.,1.),
+        #     param_or_closure='interval_alpha'
+        # )
 
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:

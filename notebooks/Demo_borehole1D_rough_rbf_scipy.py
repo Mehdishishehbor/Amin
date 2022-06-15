@@ -38,8 +38,8 @@ tkwargs = {
 
 
 ###############Parameters########################
-noise_flag = 0
-noise_std = 0.0
+noise_flag = 1.0
+noise_std = 3.0
 add_prior_flag = True
 num_minimize_init = 25
 num_samples_train = 100
@@ -166,6 +166,9 @@ with torch.no_grad():
     test_mean2, std = model2.predict(test_x,return_std=True, include_noise = True)
     
 
+
+# print('######################################')
+# print(f'The value of the interval score is {model2.interval_alpha}')
 
 print('######################################')
 noise = model2.likelihood.noise_covar.noise.item() * model2.y_std**2
