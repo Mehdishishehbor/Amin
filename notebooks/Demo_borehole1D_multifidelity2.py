@@ -28,6 +28,10 @@ from typing import Dict
 from lmgp_pytorch.visual import plot_latenth
 
 from lmgp_pytorch.optim import noise_tune2
+
+from lmgp_pytorch.preprocessing.Normalize import standard
+from lmgp_pytorch.preprocessing.numericlevels import setlevels
+
 ###############Parameters########################
 noise_flag = 1
 noise_std = 3.0
@@ -88,6 +92,10 @@ index = torch.where(test_x[:,-1] == predict_fidelity)
 test_x = test_x[index]
 test_y = test_y[index]
 
+train_x = setlevels(train_x, qual_index)
+test_x = setlevels(test_x, qual_index)
+
+train_x, test_x = standard(train_x, quant_index, test_x)
 
 set_seed(4)
 model2 = LMGP(
