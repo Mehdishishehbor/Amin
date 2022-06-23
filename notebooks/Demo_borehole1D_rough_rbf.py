@@ -31,12 +31,12 @@ from lmgp_pytorch.visual import plot_latent
 ###############Parameters########################
 noise_flag = 0
 noise_std = 2.0
-add_prior_flag = False
-num_minimize_init = 10
+add_prior_flag = True
+num_minimize_init = 8
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = False
-quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
+quant_kernel = 'RBFKernel' #'RBFKernel' #'Rough_RBF'
 #################################################
 
 
@@ -85,7 +85,7 @@ config
 
 #######################################################################
 # generate 100 samples
-set_seed(1)
+set_seed(25)
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples_train)
 )
@@ -149,7 +149,8 @@ nll_inc_tuned,opt_history = noise_tune2(
     num_restarts = num_minimize_init,
     add_prior=add_prior_flag,
     initial_noise_var = 1,
-    accuracy=1e-3 
+    accuracy=1e-3,
+    n_jobs= 8
 )
 
 # 

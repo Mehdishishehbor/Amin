@@ -15,6 +15,7 @@
 # are subject to change at any time without prior notice.
 
 from turtle import forward
+from matplotlib import transforms
 import torch
 import math
 import gpytorch
@@ -30,6 +31,12 @@ from typing import List,Optional
 import numpy as np
 from pandas import DataFrame
 from category_encoders import BinaryEncoder
+
+
+tkwargs = {
+    "dtype": torch.double,
+    "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
+}
 
 
 class LMGP(GPR):
@@ -61,6 +68,16 @@ class LMGP(GPR):
         encoding_type = 'one-hot',
         uniform_encoding_columns = 2 
     ) -> None:
+
+        if len(qual_index) == 1 and num_levels_per_var[0] < 2:
+            temp = quant_index.copy()
+            temp.append(qual_index[0])
+            quant_index = temp.copy()
+            qual_index = []
+            lv_dim = 0
+        elif len(qual_index) == 0:
+            lv_dim = 0
+
 
         quant_correlation_class_name = quant_correlation_class
 
@@ -115,7 +132,7 @@ class LMGP(GPR):
                 )
             
             if len(qual_index) > 0:
-                correlation_kernel = qual_kernel*quant_kernel
+                correlation_kernel = qual_kernel*quant_kernel #+ qual_kernel + quant_kernel
             else:
                 correlation_kernel = quant_kernel
 
@@ -128,22 +145,20 @@ class LMGP(GPR):
         # register index and transforms
         self.register_buffer('quant_index',torch.tensor(quant_index))
         self.register_buffer('qual_index',torch.tensor(qual_index))
-
+        
 
         # latent variable mapping
-                # latent variable mapping
+        # latent variable mapping
         self.num_levels_per_var = num_levels_per_var
         self.lv_dim = lv_dim
         self.uniform_encoding_columns = uniform_encoding_columns
         self.encoding_type = encoding_type
         self.perm =[]
 
-        if len(self.qual_index) > 0:
+        if len(qual_index) > 0:
 
-        # MAPPING
-            self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
-            temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64))
-            
+            # MAPPING
+            self.zeta, self.perm, self.perm_dict = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
             #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
             #self.register_parameter('lm', nn_model.weight)
             #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
@@ -151,23 +166,46 @@ class LMGP(GPR):
 
             # Now we add the weigths to the gpytorch module class LMGP 
             
-            model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
-            self.nn_model = model_temp
+            model_temp = FFNN(self, input_size= sum(num_levels_per_var), num_classes=lv_dim, layers = NN_layers).to(**tkwargs)
+            self.nn_model = model_temp.to(**tkwargs)
+
+
+        # self.register_parameter(
+        #     name = 'interval_alpha',
+        #     parameter=torch.nn.Parameter(
+        #         torch.ones(1)
+        #     )
+        # )
+
+        # self.register_prior(
+        #     name='interval_alpha_prior',
+        #     prior=gpytorch.priors.NormalPrior(0.,1.),
+        #     param_or_closure='interval_alpha'
+        # )
 
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
 
+        nd_flag = 0
+        if x.dim() > 2:
+            xsize = x.shape
+            x = x.reshape(-1, x.shape[-1])
+            nd_flag = 1
+
         if len(self.qual_index) > 0:
-            temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64))
+            
+            temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64).to(tkwargs['device']))
 
-            embeddings = self.nn_model(temp.double(), transform = lambda x: x) #3 - torch.exp(x)
-            #self.nn_model.fci.weight.data = 3 - torch.exp(self.nn_model.fci.weight.data)
+            embeddings = self.nn_model(temp.float().to(**tkwargs))
 
-            #self.nn_model.fci.weight.data = torch.sinh(self.nn_model.fci.weight.data)
             if len(self.quant_index) > 0:
                 x = torch.cat([embeddings,x[...,self.quant_index]],dim=-1)
             else:
                 x = embeddings
+
+
+        if nd_flag == 1:
+            x = x.reshape(*xsize[:-1], -1)
 
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
@@ -202,14 +240,12 @@ class LMGP(GPR):
 
         if any([i == 1 for i in num_levels]):
             raise ValueError('Categorical variable has only one level!')
-        elif any([i == 2 for i in num_levels]):
-            raise ValueError('Binary categorical variables should not be supplied')
 
         if lv_dim == 1:
             raise RuntimeWarning('1D latent variables are difficult to optimize!')
         
         for level in num_levels:
-            if lv_dim > level - 1:
+            if lv_dim > level - 0:
                 lv_dim = min(lv_dim, level-1)
                 raise RuntimeWarning(
                     'The LV dimension can atmost be num_levels-1. '
@@ -224,7 +260,26 @@ class LMGP(GPR):
         perm = list(product(*levels))
         perm = torch.tensor(perm, dtype=torch.int64)
         self.perm=perm
-        return self.transform_categorical(perm), perm
+
+        #-------------Mapping-------------------------
+        perm_dic = {}
+        for i, row in enumerate(perm):
+            temp = str(row.tolist())
+            if temp not in perm_dic.keys():
+                perm_dic[temp] = i
+
+        #-------------One_hot_encoding------------------
+        for ii in range(perm.shape[-1]):
+            if perm[...,ii].min() != 0:
+                perm[...,ii] -= perm[...,ii].min()
+            
+        perm_one_hot = []
+        for i in range(perm.size()[1]):
+            perm_one_hot.append( torch.nn.functional.one_hot(perm[:,i]) )
+
+        perm_one_hot = torch.concat(perm_one_hot, axis=1)
+
+        return perm_one_hot, perm, perm_dic
 
     
     def transform_categorical(self, x:torch.Tensor,
@@ -232,10 +287,11 @@ class LMGP(GPR):
         ) -> None:
 
         # categorical should start from 0
+        '''
         for ii in range(x.shape[-1]):
             if x[...,ii].min() != 0:
                 x[...,ii] -= x[...,ii].min()
-            
+                
 
         if self.encoding_type == 'one-hot':
             x_one_hot = []
@@ -243,6 +299,13 @@ class LMGP(GPR):
                 x_one_hot.append( torch.nn.functional.one_hot(x[:,i]) )
 
             x_one_hot = torch.concat(x_one_hot, axis=1)
+        '''
+
+        if self.encoding_type == 'one-hot':
+            index = [self.perm_dict[str(row.tolist())] for row in x]
+
+            return self.zeta[index,:]  
+
 
 
         elif self.encoding_type  == 'uniform':

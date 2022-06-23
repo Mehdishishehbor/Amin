@@ -31,7 +31,19 @@ import lmgp_pytorch
 
 from lmgp_pytorch.likelihoods_noise.multifidelity import Multifidelity_likelihood
 
-class GPR(ExactGP):
+import botorch
+from botorch.models.utils import gpt_posterior_settings
+from botorch.posteriors.gpytorch import GPyTorchPosterior
+from botorch.models.gpytorch import BatchedMultiOutputGPyTorchModel, GPyTorchModel
+
+from botorch import settings
+from botorch.models.utils import fantasize as fantasize_flag, validate_input_scaling
+from botorch.sampling.samplers import MCSampler
+from torch import Tensor
+from typing import Any, Dict, List, Optional, Union
+
+
+class GPR(ExactGP, GPyTorchModel):
     """Standard GP regression module for numerical inputs
 
     :param train_x: The training inputs (size N x d). All input variables are expected
@@ -64,7 +76,7 @@ class GPR(ExactGP):
         noise_indices:List[int],
         noise:float=1e-4,
         fix_noise:bool=False,
-        lb_noise:float=1e-8,
+        lb_noise:float=1e-12,
     ) -> None:
         # check inputs
         if not torch.is_tensor(train_x):
@@ -90,11 +102,15 @@ class GPR(ExactGP):
         train_y_sc = (train_y-y_mean)/y_std
 
         # initializing ExactGP
-        super().__init__(train_x,train_y_sc,likelihood)
-
+        #super().__init__(train_x,train_y_sc,likelihood)
+        ExactGP.__init__(self, train_x,train_y_sc, likelihood)
+        
         # registering mean and std of the raw response
         self.register_buffer('y_mean',y_mean)
         self.register_buffer('y_std',y_std)
+        self.register_buffer('y_scaled',train_y_sc)
+
+        self._num_outputs = 1
 
         # initializing and fixing noise
         if noise is not None:
@@ -131,7 +147,7 @@ class GPR(ExactGP):
         )
         # register priors
         self.covar_module.register_prior(
-            'outputscale_prior',LogNormalPrior(0.,1.),'outputscale'
+            'outputscale_prior',LogNormalPrior(1e-6,1.),'outputscale'
         )
     
     def forward(self,x:torch.Tensor)->MultivariateNormal:
@@ -175,6 +191,24 @@ class GPR(ExactGP):
                 return out_mean,out_std
 
             return out_mean
+
+    
+    def posterior(
+        self,
+        X,
+        output_indices = None,
+        observation_noise= True,
+        posterior_transform= None,
+        **kwargs,
+    ):
+
+        self.eval()
+        with gpt_posterior_settings() and gptsettings.fast_computations(log_prob=False):
+    
+            if observation_noise:
+                return GPyTorchPosterior(mvn = self.likelihood(self(X.double())))
+            else:
+                return GPyTorchPosterior(mvn = self(X.double()))
     
     def reset_parameters(self) -> None:
         """Reset parameters by sampling from prior
@@ -183,3 +217,182 @@ class GPR(ExactGP):
             if not closure(module).requires_grad:
                 continue
             setting_closure(module,prior.expand(closure(module).shape).sample())
+
+
+    def fantasize(
+            self,
+            X: Tensor,
+            sampler: MCSampler,
+            observation_noise: Union[bool, Tensor] = True,
+            **kwargs: Any,
+        ):
+            r"""Construct a fantasy model.
+
+            Constructs a fantasy model in the following fashion:
+            (1) compute the model posterior at `X` (if `observation_noise=True`,
+            this includes observation noise taken as the mean across the observation
+            noise in the training data. If `observation_noise` is a Tensor, use
+            it directly as the observation noise to add).
+            (2) sample from this posterior (using `sampler`) to generate "fake"
+            observations.
+            (3) condition the model on the new fake observations.
+
+            Args:
+                X: A `batch_shape x n' x d`-dim Tensor, where `d` is the dimension of
+                    the feature space, `n'` is the number of points per batch, and
+                    `batch_shape` is the batch shape (must be compatible with the
+                    batch shape of the model).
+                sampler: The sampler used for sampling from the posterior at `X`.
+                observation_noise: If True, include the mean across the observation
+                    noise in the training data as observation noise in the posterior
+                    from which the samples are drawn. If a Tensor, use it directly
+                    as the specified measurement noise.
+
+            Returns:
+                The constructed fantasy model.
+            """
+            propagate_grads = kwargs.pop("propagate_grads", False)
+            with fantasize_flag():
+                with settings.propagate_grads(propagate_grads):
+                    post_X = self.posterior(
+                        X, observation_noise=observation_noise, **kwargs
+                    )
+                Y_fantasized = sampler(post_X)  # num_fantasies x batch_shape x n' x m
+                # Use the mean of the previous noise values (TODO: be smarter here).
+                # noise should be batch_shape x q x m when X is batch_shape x q x d, and
+                # Y_fantasized is num_fantasies x batch_shape x q x m.
+                noise_shape = Y_fantasized.shape[1:]
+                noise = self.likelihood.noise.mean().expand(noise_shape)
+                return self.condition_on_observations(
+                    X=self.transform_inputs(X), Y=Y_fantasized, noise=noise
+                )
+
+    '''
+    def transform_inputs(
+        self,
+        X: Tensor,
+        input_transform= None,
+    ) -> Tensor:
+        r"""Transform inputs.
+
+        Args:
+            X: A tensor of inputs
+            input_transform: A Module that performs the input transformation.
+
+        Returns:
+            A tensor of transformed inputs
+        """
+        if input_transform is not None:
+            input_transform.to(X)
+            return input_transform(X)
+        try:
+            return self.input_transform(X)
+        except AttributeError:
+            return X
+
+    '''
+
+    '''
+
+    def condition_on_observations(
+        self, X: Tensor, Y: Tensor, **kwargs: Any
+    ) -> BatchedMultiOutputGPyTorchModel:
+        r"""Condition the model on new observations.
+
+        Args:
+            X: A `batch_shape x n' x d`-dim Tensor, where `d` is the dimension of
+                the feature space, `m` is the number of points per batch, and
+                `batch_shape` is the batch shape (must be compatible with the
+                batch shape of the model).
+            Y: A `batch_shape' x n' x m`-dim Tensor, where `m` is the number of
+                model outputs, `n'` is the number of points per batch, and
+                `batch_shape'` is the batch shape of the observations.
+                `batch_shape'` must be broadcastable to `batch_shape` using
+                standard broadcasting semantics. If `Y` has fewer batch dimensions
+                than `X`, its is assumed that the missing batch dimensions are
+                the same for all `Y`.
+
+        Returns:
+            A `BatchedMultiOutputGPyTorchModel` object of the same type with
+            `n + n'` training examples, representing the original model
+            conditioned on the new observations `(X, Y)` (and possibly noise
+            observations passed in via kwargs).
+
+        Example:
+            >>> train_X = torch.rand(20, 2)
+            >>> train_Y = torch.cat(
+            >>>     [torch.sin(train_X[:, 0]), torch.cos(train_X[:, 1])], -1
+            >>> )
+            >>> model = SingleTaskGP(train_X, train_Y)
+            >>> new_X = torch.rand(5, 2)
+            >>> new_Y = torch.cat([torch.sin(new_X[:, 0]), torch.cos(new_X[:, 1])], -1)
+            >>> model = model.condition_on_observations(X=new_X, Y=new_Y)
+        """
+        noise = kwargs.get("noise")
+        if hasattr(self, "outcome_transform"):
+            # we need to apply transforms before shifting batch indices around
+            Y, noise = self.outcome_transform(Y, noise)
+        self._validate_tensor_args(X=X, Y=Y, Yvar=noise, strict=False)
+        inputs = X
+
+        inputs = X
+        targets = Y
+
+        if noise is not None:
+            kwargs.update({"noise": noise})
+        fantasy_model = self.condition_on_observations_super(X=inputs, Y=targets, **kwargs)
+        fantasy_model._input_batch_shape = fantasy_model.train_targets.shape[
+            : (-1 if self._num_outputs == 1 else -2)
+        ]
+        fantasy_model._aug_batch_shape = fantasy_model.train_targets.shape[:-1]
+        return fantasy_model
+    
+
+    def condition_on_observations_super(self, X: Tensor, Y: Tensor, **kwargs: Any):
+        r"""Condition the model on new observations.
+
+        Args:
+            X: A `batch_shape x n' x d`-dim Tensor, where `d` is the dimension of
+                the feature space, `n'` is the number of points per batch, and
+                `batch_shape` is the batch shape (must be compatible with the
+                batch shape of the model).
+            Y: A `batch_shape' x n x m`-dim Tensor, where `m` is the number of
+                model outputs, `n'` is the number of points per batch, and
+                `batch_shape'` is the batch shape of the observations.
+                `batch_shape'` must be broadcastable to `batch_shape` using
+                standard broadcasting semantics. If `Y` has fewer batch dimensions
+                than `X`, its is assumed that the missing batch dimensions are
+                the same for all `Y`.
+
+        Returns:
+            A `Model` object of the same type, representing the original model
+            conditioned on the new observations `(X, Y)` (and possibly noise
+            observations passed in via kwargs).
+
+        Example:
+            >>> train_X = torch.rand(20, 2)
+            >>> train_Y = torch.sin(train_X[:, 0]) + torch.cos(train_X[:, 1])
+            >>> model = SingleTaskGP(train_X, train_Y)
+            >>> new_X = torch.rand(5, 2)
+            >>> new_Y = torch.sin(new_X[:, 0]) + torch.cos(new_X[:, 1])
+            >>> model = model.condition_on_observations(X=new_X, Y=new_Y)
+        """
+        Yvar = kwargs.get("noise", None)
+        if hasattr(self, "outcome_transform"):
+            # pass the transformed data to get_fantasy_model below
+            # (unless we've already trasnformed if BatchedMultiOutputGPyTorchModel)
+            if not isinstance(self, BatchedMultiOutputGPyTorchModel):
+                Y, Yvar = self.outcome_transform(Y, Yvar)
+        # validate using strict=False, since we cannot tell if Y has an explicit
+        # output dimension
+        self._validate_tensor_args(X=X, Y=Y, Yvar=Yvar, strict=False)
+        if Y.size(-1) == 1:
+            Y = Y.squeeze(-1)
+            if Yvar is not None:
+                kwargs.update({"noise": Yvar.squeeze(-1)})
+        # get_fantasy_model will properly copy any existing outcome transforms
+        # (since it deepcopies the original model)
+    
+        return self.get_fantasy_model(inputs=X, targets=Y, **kwargs)
+
+    '''

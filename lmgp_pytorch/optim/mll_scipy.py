@@ -28,12 +28,18 @@ from joblib.externals.loky import set_loky_pickler
 from typing import Dict,List,Tuple,Optional,Union
 from copy import deepcopy
 
+#####################Optimization###########################
 from scipy.optimize import Bounds
-######################################################## AMIN: 
 from scipy.optimize import NonlinearConstraint
 from scipy.optimize import BFGS
-
 #######################################################
+
+from lmgp_pytorch.utils.interval_score import interval_score
+
+tkwargs = {
+    "dtype": torch.double,
+    "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
+}
 
 def marginal_log_likelihood(model,add_prior:bool,regularization_parameter=[0,0]):
     output = model(*model.train_inputs)
@@ -54,7 +60,8 @@ def marginal_log_likelihood(model,add_prior:bool,regularization_parameter=[0,0])
             temp_1 += torch.sum(torch.abs(param))
 
     out -= regularization_parameter[0]*temp_1 + regularization_parameter[1]* temp
-    return out
+    score, accuracy = interval_score(output.mean + 1.96 * output.variance.sqrt(), output.mean - 1.96 * output.variance.sqrt(), model.y_scaled)
+    return out - 0.0 * score #- torch.exp(model.interval_alpha) * score
 
 class MLLObjective:
     """Helper class that wraps MLE/MAP objective function to be called by scipy.optimize.
@@ -89,7 +96,7 @@ class MLLObjective:
             (n,p) for n,p in self.model.named_parameters() if p.requires_grad
         ])
         
-        return np.concatenate([parameters[n].data.numpy().ravel() for n in parameters])
+        return np.concatenate([parameters[n].cpu().data.numpy().ravel() for n in parameters])
     
     def unpack_parameters(self, x:np.ndarray) -> torch.Tensor:
         """Convert hyperparameters specifed as a 1D array to a named parameter dictionary
@@ -109,7 +116,7 @@ class MLLObjective:
             param = x[i:i+param_len]
             # reshape according to this size, and cast to torch
             param = param.reshape(*self.param_shapes[n])
-            named_parameters[n] = torch.from_numpy(param)
+            named_parameters[n] = torch.from_numpy(param).to(**tkwargs)
             # update index
             i += param_len
         return named_parameters
@@ -120,7 +127,7 @@ class MLLObjective:
         grads = []
         for name,p in self.model.named_parameters():
             if p.requires_grad:
-                grad = p.grad.data.numpy()
+                grad = p.grad.cpu().data.numpy()
                 grads.append(grad.ravel())
         return np.concatenate(grads).astype(np.float64)
 
@@ -168,7 +175,7 @@ def _sample_from_prior(model) -> np.ndarray:
     for _,module,prior,closure,_ in model.named_priors():
         if not closure(module).requires_grad:
             continue
-        out.append(prior.expand(closure(module).shape).sample().numpy().ravel())
+        out.append(prior.expand(closure(module).shape).sample().cpu().numpy().ravel())
     
     return np.concatenate(out)
 
@@ -182,9 +189,10 @@ def cons_f(x,likobj):
     #Omegas=likobj.model.covar_module.base_kernel.kernels[1].lengthscale.data.numpy().reshape(-1,)
     return out_constraint[0:8]
 
-
 def get_bounds(likobj, theta):
+
     dic = likobj.unpack_parameters(theta)
+
     minn = np.empty(0)
     maxx = np.empty(0)
     for name, values in dic.items():
@@ -236,7 +244,7 @@ def _fit_model_from_state(likobj,theta0,jac,options, method = 'trust-constr',con
     else:
         bounds=None
 
-        
+
     try:
         with gptsettings.fast_computations(log_prob=False):
             return minimize(
@@ -376,9 +384,7 @@ def fit_model_scipy(
     old_dict.update(likobj.unpack_parameters(theta_best))
     model.load_state_dict(old_dict)
 
-    model.nn_model.fci.weight.data = likobj.unpack_parameters(theta_best)['fci']
-
-    #A = cons_f(theta_best, likobj)
-
+    if 'fci' in [name for name,p in model.named_parameters()]:
+        model.nn_model.fci.weight.data = old_dict['fci']
 
     return out,nlls_opt[best_idx]

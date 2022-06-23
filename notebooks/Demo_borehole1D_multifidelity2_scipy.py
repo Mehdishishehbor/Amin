@@ -198,6 +198,7 @@ print('######################################')
 # ending timing
 end_time = time.time()
 print(f'The total time in second is {end_time - start_time}')
+#######################################################################
 
 # plot latent values
 # plt.figure(figsize=(8, 6))
