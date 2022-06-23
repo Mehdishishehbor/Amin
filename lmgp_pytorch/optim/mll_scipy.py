@@ -14,6 +14,8 @@
 # software constitutes an implicit agreement to these terms. These terms and conditions 
 # are subject to change at any time without prior notice.
 
+from cmath import inf
+from pickle import NONE
 import torch
 import numpy as np
 from gpytorch import settings as gptsettings
@@ -26,14 +28,32 @@ from joblib.externals.loky import set_loky_pickler
 from typing import Dict,List,Tuple,Optional,Union
 from copy import deepcopy
 
-def marginal_log_likelihood(model,add_prior:bool):
+from scipy.optimize import Bounds
+######################################################## AMIN: 
+from scipy.optimize import NonlinearConstraint
+from scipy.optimize import BFGS
+
+#######################################################
+
+def marginal_log_likelihood(model,add_prior:bool,regularization_parameter=[0,0]):
     output = model(*model.train_inputs)
     out = model.likelihood(output).log_prob(model.train_targets)
     if add_prior:
         # add priors
         for _, module, prior, closure, _ in model.named_priors():
             out.add_(prior.log_prob(closure(module)).sum())
+    temp = 0
+    temp_1=0
+    for name, param in model.named_parameters():
+        string_list = ['fci', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h8','h9', 'h10', 'h11', 'h12','fce']
+        if name in string_list:
+            temp += torch.norm(param)
+            temp_1 += torch.sum(torch.abs(param))
+        elif name in ['nn_model.' + str + '.bias' for str in string_list]:
+            temp += torch.norm(param)
+            temp_1 += torch.sum(torch.abs(param))
 
+    out -= regularization_parameter[0]*temp_1 + regularization_parameter[1]* temp
     return out
 
 class MLLObjective:
@@ -43,9 +63,10 @@ class MLLObjective:
         optimized.
     :type model: models.GPR
     """
-    def __init__(self,model,add_prior):
+    def __init__(self,model,add_prior,regularization_parameter):
         self.model = model 
         self.add_prior = add_prior
+        self.regularization_parameter=regularization_parameter
 
         parameters = OrderedDict([
             (n,p) for n,p in self.model.named_parameters() if p.requires_grad
@@ -127,9 +148,11 @@ class MLLObjective:
         old_dict.update(state_dict)
         self.model.load_state_dict(old_dict)
         
+        self.model.nn_model.fci.weight.data = state_dict['fci']
+
         # zero the gradient
         self.model.zero_grad()
-        obj = -marginal_log_likelihood(self.model, self.add_prior) # negative sign to minimize
+        obj = -marginal_log_likelihood(self.model, self.add_prior,self.regularization_parameter) # negative sign to minimize
         
         if return_grad:
             # backprop the objective
@@ -138,7 +161,8 @@ class MLLObjective:
             return obj.item(),self.pack_grads()
         
         return obj.item()
-    
+
+
 def _sample_from_prior(model) -> np.ndarray:
     out = []
     for _,module,prior,closure,_ in model.named_priors():
@@ -148,18 +172,87 @@ def _sample_from_prior(model) -> np.ndarray:
     
     return np.concatenate(out)
 
-def _fit_model_from_state(likobj,theta0,jac,options):
+
+def cons_f(x,likobj):
+    zeta = torch.tensor(likobj.model.zeta, dtype = torch.float64)
+    A = likobj.unpack_parameters(x)['fci']
+    likobj.model.nn_model.fci.weight.data = A
+    positions = likobj.model.nn_model(zeta)
+    out_constraint=positions.detach().numpy().reshape(-1,)
+    #Omegas=likobj.model.covar_module.base_kernel.kernels[1].lengthscale.data.numpy().reshape(-1,)
+    return out_constraint[0:8]
+
+
+def get_bounds(likobj, theta):
+    dic = likobj.unpack_parameters(theta)
+    minn = np.empty(0)
+    maxx = np.empty(0)
+    for name, values in dic.items():
+        if name == 'fci':
+            minn = np.concatenate( (minn,  np.repeat(-3, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat(3, values.numel()) ) )
+        elif name == 'likelihood.noise_covar.raw_noise':
+            minn = np.concatenate( (minn,  np.repeat(-np.inf, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( np.inf, values.numel()) ) )
+        elif name == 'mean_module.constant':
+            minn = np.concatenate( (minn,  np.repeat(-np.inf, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( np.inf, values.numel()) ) )
+        elif name == 'covar_module.raw_outputscale':
+            minn = np.concatenate( (minn,  np.repeat(0, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( np.inf, values.numel()) ) )
+        elif name == 'covar_module.base_kernel.kernels.1.raw_lengthscale':
+            minn = np.concatenate( (minn,  np.repeat(-10.0, values.numel()) ) )
+            maxx = np.concatenate( (maxx,  np.repeat( 3.0, values.numel()) ) )
+    return np.array(minn).reshape(-1,), np.array(maxx).reshape(-1,)
+
+
+def _fit_model_from_state(likobj,theta0,jac,options, method = 'trust-constr',constraint=True,bounds=False):
+    
+    min, max = get_bounds(likobj, theta0)
+    bounds_acts = Bounds(min, max)
+    
+    nonlinear_constraint = NonlinearConstraint(lambda x: cons_f(x, likobj), [0,0,0,0,-5,0,-5,-5],[0,0,5,0,5,5,5,5], jac='2-point', hess=BFGS())
+    
+    '''
+    if constraint==True:
+        nonlinear_constraint = NonlinearConstraint(lambda x: cons_f(x, likobj), [0,0,0,0,-inf,0],[0,0,inf,0,inf,inf], jac='2-point', hess=BFGS())
+    
+    else:
+        nonlinear_constraint = NonlinearConstraint(lambda x: cons_f(x, likobj), [-inf,-inf,-inf,-inf,-inf,-inf],[inf,inf,inf,inf,inf,inf], jac='2-point', hess=BFGS())
+
+    '''
+    eq_cons = {'type': 'eq',
+                'fun' : lambda x: np.array([cons_f(x, likobj)[0],cons_f(x, likobj)[1],cons_f(x, likobj)[3]])}
+    ineq_cons = {'type': 'ineq',
+                'fun' : lambda x: np.array([cons_f(x, likobj)[2],cons_f(x, likobj)[5]])}
+    if constraint==True:
+        nonlinear_constraint=[nonlinear_constraint]
+    else:
+        nonlinear_constraint=[]
+
+
+    if bounds==True:
+        bounds=bounds_acts
+    else:
+        bounds=None
+
+        
     try:
         with gptsettings.fast_computations(log_prob=False):
             return minimize(
                 fun = likobj.fun,
                 x0 = theta0,
                 args=(True) if jac else (False),
-                method = 'L-BFGS-B',
+
+                method = method,
                 jac=jac,
-                bounds=None,
-                options= options #{'gtol': 1e-07, 'norm': np.inf, 'eps': 1.4901161193847656e-08, 'maxiter': None, 'disp': False, 'return_all': False, 'finite_diff_rel_step': None}
+                bounds=bounds,
+                constraints= nonlinear_constraint,
+                #constraints=[eq_cons, ineq_cons],
+                options= options 
             )
+
+
     except Exception as e:
         if isinstance(e,NotPSDError) or isinstance(e, NanError):
             # Unstable hyperparameter configuration. This can happen if the 
@@ -170,6 +263,8 @@ def _fit_model_from_state(likobj,theta0,jac,options):
             # by the user. Raise error to indicate the problematic part.
             raise
 
+
+
 def fit_model_scipy(
     model,
     add_prior:bool=True,
@@ -178,6 +273,10 @@ def fit_model_scipy(
     jac:bool=True, 
     options:Dict={},
     n_jobs:int=1,
+    method = 'L-BFGS-B',
+    constraint=True,
+    bounds=False,
+    regularization_parameter:List[int]=[0,0]
     ) -> Tuple[List[OptimizeResult],float]:
     """Optimize the likelihood/posterior of a GP model using `scipy.optimize.minimize`.
 
@@ -229,16 +328,30 @@ def fit_model_scipy(
     
     :rtype: Tuple[List[OptimizeResult],float]
     """
-    defaults = {
-        'ftol':1e-6,'gtol':1e-5,'maxfun':5000,'maxiter':2000
-    }
+
+    defaults = {}
+
+    if method == 'L-BFGS-B':
+        defaults = {'ftol':1e-6,'gtol':1e-5,'maxfun':5000,'maxiter':2000}
+    elif method == 'trust-constr':
+        defaults = {'verbose': 1}
+    elif method == 'BFGS':
+        defaults = {'gtol': 1e-07, 'norm': np.inf, 'eps': 1.4901161193847656e-08,'maxiter': None, 'disp': False, 'return_all': False, 'finite_diff_rel_step': None}#
+    elif method == 'SLSQP':
+        defaults = { 'maxiter': 100, 'ftol': 1e-06, 'iprint': 1, 'disp': False, 'eps': 1.4901161193847656e-08, 'finite_diff_rel_step': None}#
+    elif method == 'Newton-CG':
+        defaults={'xtol': 1e-05, 'eps': 1.4901161193847656e-08, 'maxiter': None, 'disp': False, 'return_all': False}
+    else:
+        raise ValueError('Wrong method')
+
     if len(options) > 0:
         for key in options.keys():
             if key not in defaults.keys():
                 raise RuntimeError('Unknown option %s!'%key)
             defaults[key] = options[key]
 
-    likobj = MLLObjective(model,add_prior)
+
+    likobj = MLLObjective(model,add_prior,regularization_parameter)
 
     if theta0_list is None:
         theta0_list = [likobj.pack_parameters()]
@@ -249,7 +362,7 @@ def fit_model_scipy(
     # Output - Contains either optimize result objects or exceptions
     set_loky_pickler("dill") 
     out = Parallel(n_jobs=n_jobs,verbose=0)(
-        delayed(_fit_model_from_state)(likobj,theta0,jac,defaults) \
+        delayed(_fit_model_from_state)(likobj,theta0,jac,defaults, method,constraint,bounds) \
             for theta0 in theta0_list
     )
     set_loky_pickler("pickle")
@@ -262,5 +375,10 @@ def fit_model_scipy(
     old_dict = deepcopy(model.state_dict())
     old_dict.update(likobj.unpack_parameters(theta_best))
     model.load_state_dict(old_dict)
+
+    model.nn_model.fci.weight.data = likobj.unpack_parameters(theta_best)['fci']
+
+    #A = cons_f(theta_best, likobj)
+
 
     return out,nlls_opt[best_idx]

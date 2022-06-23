@@ -14,6 +14,7 @@
 # software constitutes an implicit agreement to these terms. These terms and conditions 
 # are subject to change at any time without prior notice.
 
+from turtle import forward
 import torch
 import math
 import gpytorch
@@ -44,8 +45,10 @@ class LMGP(GPR):
     """
     def __init__(
         self,
+        #transformation_of_A_parameters:str,
         train_x:torch.Tensor,
         train_y:torch.Tensor,
+        noise_indices:List[int],
         qual_index:List[int],
         quant_index:List[int],
         num_levels_per_var:List[int],
@@ -60,6 +63,10 @@ class LMGP(GPR):
     ) -> None:
 
         quant_correlation_class_name = quant_correlation_class
+
+        if len(qual_index) == 0:
+            lv_dim = 0
+
 
         if quant_correlation_class_name == 'Rough_RBF':
             quant_correlation_class = 'RBFKernel'
@@ -113,7 +120,7 @@ class LMGP(GPR):
                 correlation_kernel = quant_kernel
 
         super(LMGP,self).__init__(
-            train_x=train_x,train_y=train_y,
+            train_x=train_x,train_y=train_y,noise_indices=noise_indices,
             correlation_kernel=correlation_kernel,
             noise=noise,fix_noise=fix_noise,lb_noise=lb_noise
         )
@@ -131,31 +138,36 @@ class LMGP(GPR):
         self.encoding_type = encoding_type
         self.perm =[]
 
-        # MAPPING
-        self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
-        temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64))
-        
-        #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
-        #self.register_parameter('lm', nn_model.weight)
-        #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
-        #self.nn_model = nn_model
+        if len(self.qual_index) > 0:
 
-        # Now we add the weigths to the gpytorch module class LMGP 
-        
-        model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
-        self.nn_model = model_temp
+        # MAPPING
+            self.zeta, self.perm = self.zeta_matrix(num_levels=self.num_levels_per_var, lv_dim = self.lv_dim)
+            temp = self.transform_categorical(x= train_x[:,self.qual_index].clone().detach().type(torch.int64))
+            
+            #nn_model = self.LMMAPPING(num_features = temp.shape[1], type='Linear', lv_dim=2)  
+            #self.register_parameter('lm', nn_model.weight)
+            #self.register_prior(name = 'latent_prior', prior=gpytorch.priors.NormalPrior(0.,1.), param_or_closure='lm')
+            #self.nn_model = nn_model
+
+            # Now we add the weigths to the gpytorch module class LMGP 
+            
+            model_temp = FFNN(self, input_size=temp.shape[1], num_classes=lv_dim, layers = NN_layers)
+            self.nn_model = model_temp
 
 
     def forward(self,x:torch.Tensor) -> MultivariateNormal:
 
-        temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64))
+        if len(self.qual_index) > 0:
+            temp= self.transform_categorical(x=x[:,self.qual_index].clone().detach().type(torch.int64))
 
-        embeddings = self.nn_model(temp.double())
+            embeddings = self.nn_model(temp.double(), transform = lambda x: x) #3 - torch.exp(x)
+            #self.nn_model.fci.weight.data = 3 - torch.exp(self.nn_model.fci.weight.data)
 
-        if len(self.quant_index) > 0:
-            x = torch.cat([embeddings,x[...,self.quant_index]],dim=-1)
-        else:
-            x = embeddings
+            #self.nn_model.fci.weight.data = torch.sinh(self.nn_model.fci.weight.data)
+            if len(self.quant_index) > 0:
+                x = torch.cat([embeddings,x[...,self.quant_index]],dim=-1)
+            else:
+                x = embeddings
 
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
@@ -301,16 +313,18 @@ class FFNN(nn.Module):
             lmgp.register_parameter('fce', self.fce.weight)
             lmgp.register_prior(name = 'latent_prior_fce', prior=gpytorch.priors.NormalPrior(0.,3.), param_or_closure='fce')
         else:
-            self.fci = nn.Linear(input_size, num_classes, bias = False)
+            self.fci = Linear_MAP(input_size, num_classes, bias = False)
             lmgp.register_parameter('fci', self.fci.weight)
-            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0,3), param_or_closure='fci')
+            lmgp.register_prior(name = 'latent_prior_fci', prior=gpytorch.priors.NormalPrior(0,1) , param_or_closure='fci')
             #lmgp.sample_from_prior('latent_prior_fci')
             #lmgp.pyro_sample_from_prior()
+            #NormalPrior(0,3)
+            #LogNormalPrior(0,5)
 
 
 
 
-    def forward(self, x):
+    def forward(self, x, transform = lambda x: x):
         """
         x here is the mnist images and we run it through fc1, fc2 that we created above.
         we also add a ReLU activation function in between and for that (since it has no parameters)
@@ -324,5 +338,38 @@ class FFNN(nn.Module):
             
             x = self.fce(x)
         else:
-            x = self.fci(x)
+            #self.fci.weight.data = torch.sinh(self.fci.weight.data)
+            #self.fci.weight.data = 2*(self.fci.weight.data)
+            x = self.fci(x, transform)
         return x
+
+
+
+
+
+class Linear_MAP(nn.Linear):
+    def __init__(self, in_features: int, out_features: int, bias: bool = True, device=None, dtype=None) -> None:
+        super().__init__(in_features, out_features, bias, device, dtype)
+        
+
+    def forward(self, input, transform = lambda x: x):
+        return F.linear(input,transform(self.weight), self.bias)
+
+# elif transformation_of_A_parameters=='exp':
+    
+#     class Linear_MAP(nn.Linear):
+#         def __init__(self, in_features: int, out_features: int, bias: bool = True, device=None, dtype=None) -> None:
+#             super().__init__(in_features, out_features, bias, device, dtype)
+        
+
+#         def forward(self, input):
+#             return F.linear(input, torch.exp(self.weight), self.bias)
+
+# elif transformation_of_A_parameters=='sinh':
+#     class Linear_MAP(nn.Linear):
+#         def __init__(self, in_features: int, out_features: int, bias: bool = True, device=None, dtype=None) -> None:
+#             super().__init__(in_features, out_features, bias, device, dtype)
+        
+
+#         def forward(self, input):
+#             return F.linear(input, torch.sinh(self.weight), self.bias)

@@ -3,8 +3,6 @@
 
 # # LMGP regresssion demonstration
 # 
-
-
 import torch
 import math
 import random
@@ -25,7 +23,6 @@ from lmgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
 from lmgp_pytorch.utils.input_space import InputSpace
 
 from typing import Dict
-
 from lmgp_pytorch.visual import plot_latent
 
 ###############Parameters########################
@@ -35,7 +32,7 @@ add_prior_flag = True
 num_minimize_init = 0
 num_samples_train = 100
 num_samples_test = 10000
-save_mat_flag = False
+save_mat_flag = True
 #################################################
 
 
@@ -70,13 +67,17 @@ Hu = NumericalVariable(name='H_u',lower=990,upper=1110)
 Tl = NumericalVariable(name='T_l',lower=63.1,upper=116)
 L = NumericalVariable(name='L',lower=1120,upper=1680)
 K_w = NumericalVariable(name='K_w',lower=9855,upper=12045)
+H_l = NumericalVariable(name='H_l',lower=700,upper=820)
 
 #L = CategoricalVariable(name='L',levels=np.linspace(1120,1680,5))
 #K_w = CategoricalVariable(name='K_w', levels=np.linspace(9855,12045,5))
 
 r_w = CategoricalVariable(name='r_w',levels=np.linspace(0.05,0.15,5))
-H_l = CategoricalVariable(name='H_l',levels=np.linspace(700,820,5))
+#H_l = CategoricalVariable(name='H_l',levels=np.linspace(700,820,5))
+
+
 config.add_inputs([r,Tu,Hu,Tl,L,K_w,r_w,H_l])
+
 
 config
 
@@ -115,7 +116,9 @@ if noise_flag == 1:
 # ## save .mat files
 if save_mat_flag:
     from scipy.io import savemat
-    savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
+    savemat('borehole_100_one_CAT_4_Level.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
+
+
 
 '''
 X = train_x[...,config.quant_index]

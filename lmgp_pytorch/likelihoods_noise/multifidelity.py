@@ -11,9 +11,10 @@ from torch import Tensor
 
 class Multifidelity_likelihood(_GaussianLikelihoodBase):
 
-    def __init__(self, fidel_indices: Tensor, noise_indices: list = [1], noise_prior = None, noise_constraint = None, num_noises = 1,
+    def __init__(self, fidel_indices: Tensor, noise_indices: list = [1], noise_prior = None, noise_constraint = None, 
         learn_additional_noise = False, batch_shape = torch.Size(), **kwargs) -> None:
-        
+        # num_noises = len(noise_indices)
+        num_noises = len(noise_indices)
         noise_covar = Multifidelity_noise(noise_prior=noise_prior, 
         noise_constraint=noise_constraint, batch_shape=batch_shape, num_noises = num_noises)
         super().__init__(noise_covar = noise_covar)

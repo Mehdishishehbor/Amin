@@ -61,6 +61,7 @@ class GPR(ExactGP):
         train_x:torch.Tensor,
         train_y:torch.Tensor,
         correlation_kernel,
+        noise_indices:List[int],
         noise:float=1e-4,
         fix_noise:bool=False,
         lb_noise:float=1e-8,
@@ -77,9 +78,12 @@ class GPR(ExactGP):
         # initializing likelihood
         noise_constraint=GreaterThan(lb_noise,transform=torch.exp,inv_transform=torch.log)
         
-        #likelihood = gpytorch.likelihoods.GaussianLikelihood(noise_constraint=noise_constraint)
+        if len(noise_indices) == 0:
 
-        likelihood = Multifidelity_likelihood(noise_indices=[1], fidel_indices=train_x[:,-1], num_noises= 1)
+            likelihood = gpytorch.likelihoods.GaussianLikelihood(noise_constraint=noise_constraint)
+        else:
+
+            likelihood = Multifidelity_likelihood(noise_constraint=noise_constraint, noise_indices=noise_indices, fidel_indices=train_x[:,-1])
 
         # standardizing the response variable
         y_mean,y_std = train_y.mean(),train_y.std()

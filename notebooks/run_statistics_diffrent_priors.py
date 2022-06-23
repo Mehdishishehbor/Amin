@@ -8,7 +8,7 @@ rands_seeds = 11245
 # layers = ['High fidelity', 'Low fidelity 1', 'Low fidelity 2','Low fidelity 3']
 out = {'High fidelity':[], 'Low fidelity 1':[], 'Low fidelity 2':[],'Low fidelity 3':[]}
 
-layers = ['n_init=6', 'n_init=12', 'n_init=24','n_init=32']
+# layers = ['n_init=6', 'n_init=12', 'n_init=24','n_init=32']
 out_mse_h = {'n_init=6':[], 'n_init=12':[], 'n_init=24':[],'n_init=32':[]}
 out_mse_l1 = {'n_init=6':[], 'n_init=12':[], 'n_init=24':[],'n_init=32':[]}
 out_mse_l2 = {'n_init=6':[], 'n_init=12':[], 'n_init=24':[],'n_init=32':[]}
@@ -104,9 +104,10 @@ temp_a_1=[]; temp_a_3=[]; temp_a_4=[]; temp_a_5=[]; temp_a_6=[]; temp_a_7=[]; te
 #         for name, mse in zip(layers, MSE_values):
 #             out_mse_h[name].append(mse)
     
+layers = ['n_init=6']
 
 rep=50
-num_minimize_init=np.array([8,16,24,32])#([8,16,24,32])
+num_minimize_init=['none','exp','sinh','none']
 for j in range(len(layers)):
 
     temp_mse_h = [];temp_mse_l1 = [];temp_mse_l2 = [];temp_mse_l3 = []
@@ -121,7 +122,7 @@ for j in range(len(layers)):
     for i in range(rep):
 
         #######################################
-        MSE_values,omegas,positions,opt_history=statistics_test(num_minimize_init[j],rands_seeds * i)
+        MSE_values,omegas,positions,opt_history=statistics_test(randseed=rands_seeds * i)
 #       #######################################
         omegas=np.array(omegas[0])
 
@@ -147,8 +148,47 @@ for j in range(len(layers)):
     out_a_1[str(out_a_1_L[j])] = temp_a_1;out_a_2[str(out_a_2_L[j])] = temp_a_2;out_a_3[str(out_a_3_L[j])] = temp_a_3;out_a_4[str(out_a_4_L[j])] = temp_a_4;out_a_5[str(out_a_5_L[j])] = temp_a_5
     out_a_6[str(out_a_6_L[j])] = temp_a_6;out_a_7[str(out_a_7_L[j])] = temp_a_7;out_a_8[str(out_a_8_L[j])] = temp_a_8
 
+'''
+temp_a_1.to_csv("submission_FEAT.csv",index=False)
+
+temp_mse_h.to_csv("submission_FEAT.csv",index=False)
+temp_mse_l1.to_csv("submission_FEAT.csv",index=False)
+temp_mse_l2.to_csv("submission_FEAT.csv",index=False)
+temp_mse_l3.to_csv("submission_FEAT.csv",index=False)
+
+temp_omega_1.to_csv("submission_FEAT.csv",index=False)
+temp_omega_2.to_csv("submission_FEAT.csv",index=False)
+temp_omega_3.to_csv("submission_FEAT.csv",index=False)
+temp_omega_4.to_csv("submission_FEAT.csv",index=False)
+temp_omega_5.to_csv("submission_FEAT.csv",index=False)
+temp_omega_6.to_csv("submission_FEAT.csv",index=False)
+temp_omega_7.to_csv("submission_FEAT.csv",index=False)
+temp_omega_8.to_csv("submission_FEAT.csv",index=False)
+temp_omega_9.to_csv("submission_FEAT.csv",index=False)
+temp_omega_10.to_csv("submission_FEAT.csv",index=False)
 
 
+temp_a_1.append(positions[0][0]);temp_a_2.append(positions[0][1]);temp_a_3.append(positions[1][0]);temp_a_4.append(positions[1][1])
+temp_a_5.append(positions[2][0]);temp_a_6.append(positions[2][1]);temp_a_7.append(positions[3][0]);temp_a_8.append(positions[3][1])
+
+'''
+
+
+
+
+
+DATA__constraint={'out_opt_history':temp_opt_history,'mse_h':temp_mse_h, 'mse_l1':temp_mse_l1, 'mse_l2':temp_mse_l2,'mse_l3':temp_mse_l3,'a_1':temp_a_1, 'a_2':temp_a_2, 'a_3':temp_a_3,'a_4':temp_a_4,'a_5':temp_a_5, 'a_6':temp_a_6, 'a_7':temp_a_7,'a_8':temp_a_8,'omega_1':temp_omega_1, 'omega_2':temp_omega_2, 'omega_3':temp_omega_3,'omega_4':temp_omega_4,'omega_5':temp_omega_5, 'omega_6':temp_omega_6, 'omega_7':temp_omega_7,'omega_8':temp_omega_8, 'omega_9':temp_omega_9,'omega_10':temp_omega_10}
+
+#DATA_one.to_csv("DATA_one",index=False)
+with open('DATA__constraint.npy', 'wb') as f:
+    np.save(f, DATA__constraint)
+
+x=np.load('./DATA__constraint.npy', allow_pickle=True)
+
+# with open('out_latent.csv', 'w') as f:
+#     for key in DATA_a_non.keys():
+#         f.write("%s,%s\n"%(key,DATA_a_non[key]))
+'''
 plt.rcParams.update({'font.size': 14})
 plt.figure(figsize=(8, 6))
 #data = out_mse_h.values()
@@ -331,3 +371,4 @@ plt.show()
 #     for key in out_mse_h.keys():
 #         f.write("%s,%s\n"%(key,out_mse_h[key]))
 
+'''

@@ -33,26 +33,29 @@ def plot_ls(model, constraints_flag = True):
 
     positions = positions.detach().numpy()
 
-    fig,axs = plt.subplots(figsize=(8,6))
+    plt.rcParams.update({'font.size': 19})
+    fig,axs = plt.subplots(figsize=(8.5,6))
     colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
-
     # loop over the number of variables
     for j in range(len(levels)):
 
         for i in range(levels[j]):
             index = torch.where(perm[:,j] == i) 
-            col = list(map(lambda x: colors[x], np.ones(index[0].numpy().shape) * i))
-            axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1), c = col)
-            #axs.set_title('Variable ' + str(j), fontsize = 15)
-            axs.set_xlabel(r'$z_1$', fontsize = 15)
-            axs.set_ylabel(r'$z_2$', fontsize = 15)
-            axs.legend()
-            tempxi = np.min(positions[...,0])-0.1 * (np.abs(np.min(positions[...,0])) +1)
-            tempxx = np.max(positions[...,0]) + 0.1 * (np.abs(np.max(positions[...,0])) +1)
-            tempyi = np.min(positions[...,1])-0.1 * (np.abs(np.min(positions[...,1])) +1)
-            tempyx = np.max(positions[...,1]) + 0.1 * (np.abs(np.max(positions[...,1])) +1)
-            axs.set_xlim(tempxi, tempxx)
-            axs.set_ylim(tempyi, tempyx)
+            if i<=4:
+                col = list(map(lambda x: colors[x], np.ones(index[0].numpy().shape) * i))
+                axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1), c = col, marker='X',s=300)#marker=r'$\clubsuit$'
+            else: 
+                axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1))
+                #axs.set_title('Variable ' + str(j), fontsize = 15)
+                axs.set_xlabel(r'$z_1$', fontsize = 25)
+                axs.set_ylabel(r'$z_2$', fontsize = 25)
+                axs.legend()
+                tempxi = np.min(positions[...,0])-0.2 * (np.abs(np.min(positions[...,0])) +5)
+                tempxx = np.max(positions[...,0]) + 0.2 * (np.abs(np.max(positions[...,0])) +5)
+                tempyi = np.min(positions[...,1])-0.2 * (np.abs(np.min(positions[...,1])) +5)
+                tempyx = np.max(positions[...,1]) + 0.2 * (np.abs(np.max(positions[...,1])) +5)
+                axs.set_xlim(tempxi, tempxx)
+                axs.set_ylim(tempyi, tempyx)
 
             #fig.tight_layout()
     #plt.tight_layout()
@@ -75,3 +78,6 @@ def constrains(z):
         z[:, 1] *= -1
     
     return z
+    
+
+

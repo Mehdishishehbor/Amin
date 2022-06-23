@@ -49,7 +49,11 @@ def noise_tune2(
     initial_noise_var:float=1,
     red_factor:float=math.sqrt(10),
     options:Dict={},n_jobs:int=1,
-    accuracy = 1e-3
+    accuracy = 1e-3,
+    method = 'L-BFGS-B',
+    constraint=False,
+    regularization_parameter=[0, 0],
+    bounds=False
 )-> Tuple[float,Dict]:
     """Sequentially optimize the log-likelihood of a standard GP model for a decreasing
     sequence of noise variances.
@@ -167,7 +171,7 @@ def noise_tune2(
             old_state_dict[i] = deepcopy(model.state_dict())
             
             reslist,nll = fit_model_scipy(
-                model,add_prior,num_restarts=num_restarts,theta0_list=theta0_list,options=options
+                model,add_prior,num_restarts=num_restarts,theta0_list=theta0_list,options=options, n_jobs= 8, method=method, constraint=constraint, regularization_parameter=regularization_parameter, bounds=bounds
             )
             
             if all([isinstance(res,RuntimeError) or isinstance(res,TypeError) for res in reslist]):
