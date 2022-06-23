@@ -178,7 +178,7 @@ def noise_tune2(
                 # some error
                 break
             
-            noise_list.append(model.likelihood.noise.item())
+            noise_list.append(model.likelihood.noise.data)
             nll_list.append(nll)
             loocv_list.append(loocv_rrmse(model))
             reslist_list.append(reslist)

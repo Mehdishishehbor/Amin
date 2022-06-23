@@ -1,7 +1,9 @@
 import torch
 import numpy as np
 
-def setlevels(X, qual_index):
+def setlevels(X, qual_index = None):
+    if qual_index is None:
+        qual_index = list(range(X.shape[-1]))
     if type(X) == torch.Tensor:
         temp = X.clone()
     if X.ndim > 1:

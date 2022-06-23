@@ -39,7 +39,7 @@ level_sets = [4]
 
 ################################## Amin: This part is added to investigate diffirent factors on optimization ########################
 levels_for_predict=[1,2,3,4]
-noise_indices=[1,2,3,4] # if you make this [], then you will have one single noise for all cases 
+noise_indices=[] # if you make this [], then you will have one single noise for all cases 
 Optimization_technique='L-BFGS-B' #optimization methods: 'BFGS' 'L-BFGS-B' 'Newton-CG' 'trust-constr'  'SLSQP'
 Optimization_constraint=False   # False # True 
 regularization_parameter=[0, 0] ###### Always at least one element of regularization_parameter should be zero: The first element is for L1 regularization and the second element is for L2
@@ -120,7 +120,7 @@ model2 = LMGP(
 LMGP.reset_parameters
 
 # optimize noise successively
-reslist,opt_history = noise_tune2(
+reslist,opt_history = fit_model_scipy(
     model2, 
     num_restarts = num_minimize_init,
     add_prior=add_prior_flag, # number of restarts in the initial iteration
