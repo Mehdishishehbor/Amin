@@ -39,11 +39,10 @@ tkwargs = {
 from sklearn.model_selection import train_test_split
 #####################################################
 from lmgp_pytorch.test_functions.physical import Borehole
-from lmgp_gpytorch.model_selection import train_test_split
+from lmgp_gpytorch import train_test_split
 
 #####################################################
 X, y = Borehole(n = 10000, random_state= 12345)
-xtrain, ytrain, x
 
 
 ###############Parameters########################
