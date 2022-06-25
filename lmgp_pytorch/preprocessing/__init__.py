@@ -1,2 +1,2 @@
-from .Normalize import standard
+from .normalize import standard
 from .numericlevels import setlevels

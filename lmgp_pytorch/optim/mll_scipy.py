@@ -155,7 +155,8 @@ class MLLObjective:
         old_dict.update(state_dict)
         self.model.load_state_dict(old_dict)
         
-        self.model.nn_model.fci.weight.data = state_dict['fci']
+        if 'fci' in state_dict.keys():
+            self.model.nn_model.fci.weight.data = state_dict['fci']
 
         # zero the gradient
         self.model.zero_grad()
@@ -208,7 +209,7 @@ def get_bounds(likobj, theta):
         elif name == 'covar_module.raw_outputscale':
             minn = np.concatenate( (minn,  np.repeat(0, values.numel()) ) )
             maxx = np.concatenate( (maxx,  np.repeat( np.inf, values.numel()) ) )
-        elif name == 'covar_module.base_kernel.kernels.1.raw_lengthscale':
+        elif 'raw_lengthscale' in name:
             minn = np.concatenate( (minn,  np.repeat(-10.0, values.numel()) ) )
             maxx = np.concatenate( (maxx,  np.repeat( 3.0, values.numel()) ) )
     return np.array(minn).reshape(-1,), np.array(maxx).reshape(-1,)

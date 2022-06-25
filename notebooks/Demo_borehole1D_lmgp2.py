@@ -26,10 +26,10 @@ from typing import Dict
 from lmgp_pytorch.visual import plot_latent
 
 ###############Parameters########################
-noise_flag = 1
+noise_flag = 0
 noise_std = 3.0
 add_prior_flag = True
-num_minimize_init = 0
+num_minimize_init = 8
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = True
@@ -73,7 +73,7 @@ H_l = NumericalVariable(name='H_l',lower=700,upper=820)
 #K_w = CategoricalVariable(name='K_w', levels=np.linspace(9855,12045,5))
 
 r_w = CategoricalVariable(name='r_w',levels=np.linspace(0.05,0.15,5))
-#H_l = CategoricalVariable(name='H_l',levels=np.linspace(700,820,5))
+H_l = CategoricalVariable(name='H_l',levels=np.linspace(700,820,5))
 
 
 config.add_inputs([r,Tu,Hu,Tl,L,K_w,r_w,H_l])
@@ -146,7 +146,7 @@ model2 = LMGP(
 LMGP.reset_parameters
 
 # optimize noise successively
-nll_inc_tuned,opt_history = noise_tune2(
+nll_inc_tuned,opt_history = noise_tune(
     model2, 
     num_restarts = num_minimize_init,
     add_prior=add_prior_flag # number of restarts in the initial iteration
