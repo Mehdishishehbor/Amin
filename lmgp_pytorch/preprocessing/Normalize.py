@@ -18,7 +18,7 @@ def standard(Xtrain, quant_index, Xtest = None):
     if type(Xtrain) == np.ndarray:
         Xtrain = torch.from_numpy(Xtrain)
     if Xtest is None:
-        return Xtrain
+        return Xtrain,mean_xtrain, std_xtrain
     else:
         temp2 = Xtest[..., quant_index]
         if type(temp2) != torch.Tensor:
@@ -27,5 +27,5 @@ def standard(Xtrain, quant_index, Xtest = None):
         Xtest[..., quant_index] = temp2
         if type(Xtest) == np.ndarray:
             Xtest = torch.from_numpy(Xtest)
-        return Xtrain, Xtest
+        return Xtrain, Xtest,mean_xtrain, std_xtrain
 

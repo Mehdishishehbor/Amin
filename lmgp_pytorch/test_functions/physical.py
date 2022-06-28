@@ -96,7 +96,7 @@ def Borehole(n=100, X = None, noise_std = 0.0, random_state = None, shuffle = Tr
     rw = X[..., 0]
     r = X[..., 1]
     Tu = X[..., 2]
-    Hu = X[..., 3] * (np.pi/180.0)
+    Hu = X[..., 3] 
     Tl = X[..., 4]
     Hl = X[..., 5]
     L = X[..., 6]
@@ -137,45 +137,58 @@ def Borehole(n=100, X = None, noise_std = 0.0, random_state = None, shuffle = Tr
 
 ####################################Borehole Function################################################
 
-def Borehole_mixed_variables(n=100, X = None, qual_ind_val = {'rw'}, noise_std = 0.0, random_state = None, shuffle = True):
+def Borehole_mixed_variables(n=100, X = None, qual_ind_val = {'rw':5, 'Hl':3}, noise_std = 0.0, random_state = None, shuffle = True):
     """_summary_
 
     Args:
-        parameters (_type_, optional): For evaluation, you can give parameters and get the values. Defaults to None.
-        n (int, optional): defines the number of data needed. Defaults to 100.
+        n (int, optional): _description_. Defaults to 100.
+        X (_type_, optional): _description_. Defaults to None.
+        qual_ind_val (dict, optional): _description_. Defaults to {'rw':5, 'Hl':3}. The keys could be 
+        'rw', 'r', 'Tu', 'Hu', 'Tl', 'Hl', 'L', 'Kw'.
+        noise_std (float, optional): _description_. Defaults to 0.0.
+        random_state (_type_, optional): _description_. Defaults to None.
+        shuffle (bool, optional): _description_. Defaults to True.
 
     Returns:
-        _type_: if paramters are given, it returns y, otherwise it returns both X and y
+        _type_: _description_
     """
 
     if random_state is not None:
         np.random.seed(random_state)
 
+    labels = {'rw':0, 'r':1, 'Tu':2, 'Hu':3, "Tl":4, 'Hl':5, 'L':6, 'Kw':7}
+
     dx = 8
     l_bound = [0.05, 100, 63070, 990, 63.1, 700, 1120, 9855]
     u_bound = [0.15, 50000, 115600, 1110, 116, 820, 1680, 12045]
     out_flag = 0
+    data = {}
     if X is None:
         sobolset = Sobol(d=dx, seed = random_state)
         X = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n, :]
         X = scale(X, l_bounds=l_bound, u_bounds=u_bound)
+        # for categorical variables we select t1 levels from the boundary
+        for key, value in qual_ind_val.items():
+            levels = np.random.uniform(l_bound[labels[key]], u_bound[labels[key]], size = value)
+            X[...,labels[key]] = np.random.choice(levels, size = len(X), replace=True)
+
         out_flag = 1
     if type(X) != np.ndarray:
         X = np.array(X)
-    rw = X[..., 0]
-    r = X[..., 1]
-    Tu = X[..., 2]
-    Hu = X[..., 3] * (np.pi/180.0)
-    Tl = X[..., 4]
-    Hl = X[..., 5]
-    L = X[..., 6]
-    Kw = X[..., 7]
+    data['rw'] = X[..., 0]
+    data['r'] = X[..., 1]
+    data['Tu'] = X[..., 2]
+    data['Hu'] = X[..., 3] 
+    data['Tl'] = X[..., 4]
+    data['Hl'] = X[..., 5]
+    data['L'] = X[..., 6]
+    data['Kw'] = X[..., 7]
 
-    frac1 = 2 * np.pi * Tu * (Hu-Hl)
+    frac1 = 2 * np.pi * data['Tu'] * (data['Hu']-data['Hl'])
 
-    frac2a = 2*L*Tu / (np.log(r/rw)*rw**2*Kw)
-    frac2b = Tu / Tl
-    frac2 = np.log(r/rw) * (1+frac2a+frac2b)
+    frac2a = 2*data['L']*data['Tu'] / (np.log(data['r']/data['rw'])*data['rw']**2*data['Kw'])
+    frac2b = data['Tu'] / data['Tl']
+    frac2 = np.log(data['r']/data['rw']) * (1+frac2a+frac2b)
 
     y = frac1 / frac2
 

@@ -27,7 +27,7 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latent
 
-from lmgp_pytorch.preprocessing.Normalize import standard
+from lmgp_pytorch.preprocessing.normalize import standard
 from lmgp_pytorch.preprocessing.numericlevels import setlevels
 
 
@@ -40,28 +40,30 @@ from sklearn.model_selection import train_test_split
 #####################################################
 from lmgp_pytorch.test_functions.physical import Borehole
 from lmgp_gpytorch import train_test_split
-
 #####################################################
-X, y = Borehole(n = 10000, random_state= 12345)
-
-
-###############Parameters########################
-noise_flag = 0.0
-noise_std = 3.0
-add_prior_flag = True
-num_minimize_init = 25
-num_samples_train = 100
-num_samples_test = 10000
-save_mat_flag = False
-quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
-#################################################
-
-
-
 # start timing
 start_time = time.time()
 
+X, y = Borehole(n = 10000, random_state= 12345)
+Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size = 0.99)
 
+model = LMGP(kernel =  'Rough_RBF', random_state = 0)
+
+model.fit(Xtrain, ytrain)
+
+model.score(Xtest, ytest)
+
+model.predict(Xtest, y_std = True)
+
+# This will print all the infor about noise, mll and etc
+model.print_stats()
+
+# plot both visualizations for latent map and mse
+model.visualize()
+
+model.get_paramters()
+
+#################################################
 #get_ipython().run_line_magic('matplotlib', 'inline')
 plt.rcParams['figure.dpi']=150
 plt.rcParams['font.family']='serif'
