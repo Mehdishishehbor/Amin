@@ -29,7 +29,7 @@ from lmgp_pytorch.visual import plot_latenth
 
 from lmgp_pytorch.optim import noise_tune2
 
-from lmgp_pytorch.preprocessing.Normalize import standard
+from lmgp_pytorch.preprocessing.normalize import standard
 from lmgp_pytorch.preprocessing.numericlevels import setlevels
 
 ###############Parameters########################

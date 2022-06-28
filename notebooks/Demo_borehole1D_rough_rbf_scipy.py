@@ -27,7 +27,7 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latent
 
-from lmgp_pytorch.preprocessing.Normalize import standard
+from lmgp_pytorch.preprocessing.normalize import standard
 from lmgp_pytorch.preprocessing.numericlevels import setlevels
 
 

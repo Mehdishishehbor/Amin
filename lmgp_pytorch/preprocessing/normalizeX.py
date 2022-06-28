@@ -27,5 +27,5 @@ def standard(Xtrain, quant_index, Xtest = None):
         Xtest[..., quant_index] = temp2
         if type(Xtest) == np.ndarray:
             Xtest = torch.from_numpy(Xtest)
-        return Xtrain, Xtest,mean_xtrain, std_xtrain
+        return Xtrain, Xtest, mean_xtrain, std_xtrain
 

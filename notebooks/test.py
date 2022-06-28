@@ -1,5 +1,5 @@
-from lmgp_pytorch.preprocessing.numericlevels import setlevels
-from lmgp_pytorch.preprocessing.Normalize import standard
+from lmgp_pytorch.preprocessing import setlevels
+from lmgp_pytorch.preprocessing import standard
 import torch
 
 

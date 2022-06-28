@@ -27,8 +27,8 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latent
 
-from lmgp_pytorch.preprocessing.normalize import standard
-from lmgp_pytorch.preprocessing.numericlevels import setlevels
+from lmgp_pytorch.preprocessing import standard
+from lmgp_pytorch.preprocessing import setlevels
 
 
 tkwargs = {
@@ -39,17 +39,17 @@ tkwargs = {
 from sklearn.model_selection import train_test_split
 #####################################################
 from lmgp_pytorch.test_functions.physical import Borehole
-from lmgp_gpytorch import train_test_split
+from lmgp_pytorch.preprocessing import train_test_split_normalizeX
 #####################################################
 # start timing
 start_time = time.time()
 
 X, y = Borehole(n = 10000, random_state= 12345)
-Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, test_size = 0.99)
+Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99)
 
-model = LMGP(kernel =  'Rough_RBF', random_state = 0)
+model = LMGP(quant =  'Rough_RBF', random_state = 0)
 
-model.fit(Xtrain, ytrain)
+model.fit()
 
 model.score(Xtest, ytest)
 

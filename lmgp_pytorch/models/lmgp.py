@@ -61,7 +61,7 @@ class LMGP(GPR):
         num_levels_per_var:List[int],
         noise_indices:List[int] = [],
         lv_dim:int=2,
-        quant_correlation_class:str='RBFKernel',
+        quant_correlation_class:str='Rough_RBF',
         noise:float=1e-4,
         fix_noise:bool=True,
         lb_noise:float=1e-8,
@@ -212,6 +212,12 @@ class LMGP(GPR):
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x,covar_x)
 
+
+
+    def fit(self):
+        pass
+
+
     
     def named_hyperparameters(self):
         """Return all hyperparameters other than the latent variables
@@ -352,6 +358,7 @@ class LMGP(GPR):
 
                         
         return x_one_hot
+
 
 
 from torch import nn
