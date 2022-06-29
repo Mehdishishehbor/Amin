@@ -277,13 +277,13 @@ def _fit_model_from_state(likobj,theta0,jac,options, method = 'trust-constr',con
 def fit_model_scipy(
     model,
     add_prior:bool=True,
-    num_restarts:int=9,
+    num_restarts:int=8,
     theta0_list:Optional[List[np.ndarray]]=None,
     jac:bool=True, 
     options:Dict={},
     n_jobs:int=1,
     method = 'L-BFGS-B',
-    constraint=True,
+    constraint=False,
     bounds=False,
     regularization_parameter:List[int]=[0,0]
     ) -> Tuple[List[OptimizeResult],float]:

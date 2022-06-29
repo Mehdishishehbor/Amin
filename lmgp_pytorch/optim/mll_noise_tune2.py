@@ -49,7 +49,7 @@ def noise_tune2(
     initial_noise_var:float=1,
     red_factor:float=math.sqrt(10),
     options:Dict={},n_jobs:int=1,
-    accuracy = 1e-3,
+    accuracy = 1e-2,
     method = 'L-BFGS-B',
     constraint=False,
     regularization_parameter=[0, 0],

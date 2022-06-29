@@ -14,8 +14,7 @@
 # software constitutes an implicit agreement to these terms. These terms and conditions 
 # are subject to change at any time without prior notice.
 
-from turtle import forward
-from matplotlib import transforms
+from turtle import color
 import torch
 import math
 import gpytorch
@@ -25,14 +24,16 @@ from gpytorch.distributions import MultivariateNormal
 from .gpregression import GPR
 from .. import kernels
 from ..priors import MollifiedUniformPrior
-from ..utils.transforms import softplus,inv_softplus
-from typing import List,Optional
+from typing import List
 
 import numpy as np
 from pandas import DataFrame
 from category_encoders import BinaryEncoder
 
 from lmgp_pytorch.preprocessing.numericlevels import setlevels
+from lmgp_pytorch.optim import fit_model_scipy, noise_tune2
+from lmgp_pytorch.visual import plot_ls
+import matplotlib.pyplot as plt
 
 tkwargs = {
     "dtype": torch.double,
@@ -56,9 +57,8 @@ class LMGP(GPR):
         #transformation_of_A_parameters:str,
         train_x:torch.Tensor,
         train_y:torch.Tensor,
-        qual_index:List[int],
-        quant_index:List[int],
-        num_levels_per_var:List[int],
+        num_levels_per_var:List[int] = [],
+        qual_index:List[int] = [],
         noise_indices:List[int] = [],
         lv_dim:int=2,
         quant_correlation_class:str='Rough_RBF',
@@ -69,6 +69,9 @@ class LMGP(GPR):
         encoding_type = 'one-hot',
         uniform_encoding_columns = 2 
     ) -> None:
+
+        all_index = set(range(train_x.shape[-1]))
+        quant_index = list(all_index.difference(qual_index))
 
         if len(qual_index) == 1 and num_levels_per_var[0] < 2:
             temp = quant_index.copy()
@@ -214,20 +217,106 @@ class LMGP(GPR):
 
 
 
-    def fit(self):
-        pass
+    def fit(self, method = 'scipy', num_restarts = 24):
+        
+        if method == 'scipy':
+            fit_model_scipy(self, num_restarts= num_restarts)
+        elif method == 'continuation':
+            noise_tune2(self, num_restarts = num_restarts)
 
 
+    def predict(self, Xtest,return_std=True, include_noise = True):
+        with torch.no_grad():
+            return super().predict(Xtest, return_std = return_std, include_noise= include_noise)
+  
+
+    def score(self, Xtest, ytest, plot_MSE = True):
+        ypred = self.predict(Xtest, return_std=False)
+        mse = ((ytest-ypred)**2).mean()
+        print('#########################################')
+        print(f'MSE = {mse:.2f}')
+        print('#########################################')
+
+        if plot_MSE:
+            _ = plt.figure(figsize=(8,6))
+            _ = plt.plot(ytest.cpu().numpy(), ypred.cpu().numpy(), 'ro')
+            _ = plt.plot(ytest.cpu().numpy(), ytest.cpu().numpy(), 'b')
+            _ = plt.xlabel(r'Y_True')
+            _ = plt.ylabel(r'Y_predict')
+            _ = plt.show()
+        return mse
+
+    def visualize_latent(self):
+        if len(self.qual_index) > 0:
+            plot_ls(self, constraints_flag=False)
+        
+        plt.show()
+        
+    def get_params(self, name = None):
+        params = {}
+        print('###################Parameters###########################')
+        for n, value in self.named_parameters():
+             params[n] = value
+        if name is None:
+            print(params)
+            return params
+        else:
+            if name == 'Mean':
+                key = 'mean_module.constant'
+            elif name == 'Sigma':
+                key = 'covar_module.raw_outputscale'
+            elif name == 'Noise':
+                key = 'likelihood.noise_covar.raw_noise'
+            elif name == 'Omega':
+                for n in params.keys():
+                    if 'raw_lengthscale' in n and params[n].numel() > 1:
+                        key = n
+            print(params[key])
+            return params[key]
     
-    def named_hyperparameters(self):
-        """Return all hyperparameters other than the latent variables
 
-        This method is useful when different learning rates to the latent variables. To 
-        include the latent variables along with others use `.named_parameters` method
-        """
-        for name, param in self.named_parameters():
-            yield name, param
-    
+    def log_marginal_likelihood(self, X = None, y = None):
+        self.eval()
+        if X.dim() == 1:
+            X = X.unsqueeze(0)
+        if X == None:
+            X = self.train_inputs[0]
+            y = self.train_targets
+        LL = self.likelihood(self(X)).log_prob(y)
+        print('################## Log Likelihood ###########################')
+        print(LL)
+        print('#############################################################')
+        return self.likelihood(self(X)).log_prob(y)
+
+
+    def sample_y(self, size = 1, X = None, plot = False):
+        if X == None:
+            X = self.train_inputs[0]
+        
+        self.eval()
+        out = self.likelihood(self(X))
+        draws = out.sample(sample_shape = torch.Size([size]))
+        index = np.argsort(out.loc.detach().numpy())
+        if plot:
+            plt.scatter(list(range(len(X))), out.loc.detach().numpy()[index], color = 'red', s = 20, marker = 'o')
+            plt.scatter(np.repeat(np.arange(len(X)).reshape(1,-1), size, axis = 0), 
+                draws.detach().numpy()[:,index], color = 'blue', s = 1, alpha = 0.5, marker = '.')
+            plt.show()
+        return draws
+
+
+
+    def get_latent_space(self):
+        if len(self.qual_index) > 0:
+            zeta = torch.tensor(self.zeta, dtype = torch.float64).to(**tkwargs)
+            positions = self.nn_model(zeta)
+            return positions.detach()
+        else:
+            print('No categorical Variable, No latent positions')
+            return None
+
+
+
     def LMMAPPING(self, num_features:int, type = 'Linear',lv_dim = 2):
 
         if type == 'Linear':

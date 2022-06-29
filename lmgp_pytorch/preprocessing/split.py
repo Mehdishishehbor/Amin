@@ -1,6 +1,7 @@
 from lmgp_pytorch.preprocessing import standard 
 from lmgp_pytorch.preprocessing import setlevels
 from sklearn.model_selection import train_test_split
+import torch
 
 def train_test_split_normalizeX(
     X,
@@ -23,6 +24,9 @@ def train_test_split_normalizeX(
     # Standard
     Xtrain, Xtest, mean_train, std_train = standard(Xtrain = Xtrain, 
         quant_index = quant_index, Xtest = Xtest)
+
+    ytrain = torch.tensor(ytrain)
+    ytest = torch.tensor(ytest)
 
     if return_mean_std:
         return Xtrain, Xtest, ytrain, ytest, mean_train, std_train
