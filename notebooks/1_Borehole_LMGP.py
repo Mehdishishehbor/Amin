@@ -7,7 +7,7 @@ from lmgp_pytorch.preprocessing import train_test_split_normalizeX
 random_state = 12345
 qual_index = {0:5, 6:3}
 
-X, y = borehole_mixed_variables(n = 100, random_state= random_state, qual_ind_val= qual_index)
+X, y = borehole_mixed_variables(n = 1000, random_state= random_state, qual_ind_val= qual_index)
 Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.9, 
     random_state = random_state, qual_index = qual_index)
 

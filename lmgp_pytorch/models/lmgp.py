@@ -250,7 +250,7 @@ class LMGP(GPR):
 
     def visualize_latent(self):
         if len(self.qual_index) > 0:
-            plot_ls(self, constraints_flag=False)
+            plot_ls(self, constraints_flag=True)
         
         plt.show()
         
