@@ -57,8 +57,7 @@ class LMGP(GPR):
         #transformation_of_A_parameters:str,
         train_x:torch.Tensor,
         train_y:torch.Tensor,
-        num_levels_per_var:List[int] = [],
-        qual_index:List[int] = [],
+        qual_ind_lev = {},
         noise_indices:List[int] = [],
         lv_dim:int=2,
         quant_correlation_class:str='Rough_RBF',
@@ -70,8 +69,11 @@ class LMGP(GPR):
         uniform_encoding_columns = 2 
     ) -> None:
 
+        qual_index = list(qual_ind_lev.keys())
         all_index = set(range(train_x.shape[-1]))
         quant_index = list(all_index.difference(qual_index))
+        num_levels_per_var = list(qual_ind_lev.values())
+
 
         if len(qual_index) == 1 and num_levels_per_var[0] < 2:
             temp = quant_index.copy()

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.stats.qmc import Sobol, scale
 import math
 import torch
-
+from lmgp_pytorch.preprocessing import setlevels 
 
 ####################################Wing Function################################################
 
@@ -68,7 +68,7 @@ def wing(n=100, X = None, noise_std = 0.0, random_state = None, shuffle = True):
 
 ####################################Borehole Function################################################
 
-def Borehole(n=100, X = None, noise_std = 0.0, random_state = None, shuffle = True):
+def borehole(n=100, X = None, noise_std = 0.0, random_state = None, shuffle = True):
     """_summary_
 
     Args:
@@ -137,7 +137,8 @@ def Borehole(n=100, X = None, noise_std = 0.0, random_state = None, shuffle = Tr
 
 ####################################Borehole Function################################################
 
-def Borehole_mixed_variables(n=100, X = None, qual_ind_val = {'rw':5, 'Hl':3}, noise_std = 0.0, random_state = None, shuffle = True):
+def borehole_mixed_variables(n=100, X = None, qual_ind_val = {0:5, 6:3}, 
+    noise_std = 0.0, random_state = None, shuffle = True):
     """_summary_
 
     Args:
@@ -169,8 +170,8 @@ def Borehole_mixed_variables(n=100, X = None, qual_ind_val = {'rw':5, 'Hl':3}, n
         X = scale(X, l_bounds=l_bound, u_bounds=u_bound)
         # for categorical variables we select t1 levels from the boundary
         for key, value in qual_ind_val.items():
-            levels = np.random.uniform(l_bound[labels[key]], u_bound[labels[key]], size = value)
-            X[...,labels[key]] = np.random.choice(levels, size = len(X), replace=True)
+            levels = np.random.uniform(l_bound[key], u_bound[key], size = value)
+            X[...,key] = np.random.choice(levels, size = len(X), replace=True)
 
         out_flag = 1
     if type(X) != np.ndarray:
@@ -191,6 +192,75 @@ def Borehole_mixed_variables(n=100, X = None, qual_ind_val = {'rw':5, 'Hl':3}, n
     frac2 = np.log(data['r']/data['rw']) * (1+frac2a+frac2b)
 
     y = frac1 / frac2
+
+
+    if shuffle:
+        index = np.random.randint(0, len(y), size = len(y))
+        X = X[index,...]
+        y = y[index]
+
+
+    # This will assign levels to categorical evenif the levels are strings
+    X = setlevels(X, qual_index = list(qual_ind_val.keys()))
+
+    if noise_std > 0.0:
+        if out_flag == 1:
+            return X, y + np.random.randn(*y.shape) * noise_std
+        else:
+            return y       
+    else:
+        if out_flag == 1:
+            return X, y
+        else:
+            return y
+
+
+####################################### Wing_mixed #######################################
+def wing_mixed_variables(n=100, X = None, qual_ind_val = {0:5, 6:3}, noise_std = 0.0, random_state = None, shuffle = True):
+    """_summary_
+
+    Args:
+        parameters (_type_, optional): For evaluation, you can give parameters and get the values. Defaults to None.
+        n (int, optional): defines the number of data needed. Defaults to 100.
+
+    Returns:
+        _type_: if paramters are given, it returns y, otherwise it returns both X and y
+    """
+
+    if random_state is not None:
+        np.random.seed(random_state)
+
+    labels = {'Sw':0, 'Wfw':1, 'A':2, 'Gama':3, "q":4, 'lamb':5, 'tc':6, 'Nz':7, 'Wdg':8, 'Wp':9}
+
+    dx = 10
+    l_bound = [150, 220, 6, -10, 16, 0.5, 0.08, 2.5, 1700, 0.025]
+    u_bound = [200, 300, 10, 10, 45, 1, 0.18, 6, 2500, 0.08]
+    out_flag = 0
+    if X is None:
+        sobolset = Sobol(d=dx, seed = random_state)
+        X = sobolset.random(2 ** (np.log2(n) + 1).astype(int))[:n, :]
+        X = scale(X, l_bounds=l_bound, u_bounds=u_bound)
+        for key, value in qual_ind_val.items():
+            levels = np.random.uniform(l_bound[key], u_bound[key], size = value)
+            X[...,key] = np.random.choice(levels, size = len(X), replace=True)
+            
+        out_flag = 1
+    if type(X) != np.ndarray:
+        X = np.array(X)
+    Sw = X[..., 0]
+    Wfw = X[..., 1]
+    A = X[..., 2]
+    Gama = X[..., 3] * (np.pi/180.0)
+    q = X[..., 4]
+    lamb = X[..., 5]
+    tc = X[..., 6]
+    Nz = X[..., 7]
+    Wdg = X[..., 8]
+    Wp = X[..., 9]
+    # This is the output
+    y = 0.036 * Sw**0.758 * Wfw**0.0035 * (A/(np.cos(Gama)) ** 2) ** 0.6 * \
+        q**0.006*lamb**0.04 * ((100 * tc)/(np.cos(Gama)))**(-0.3) *\
+        (Nz * Wdg) ** 0.49 + Sw * Wp
 
 
     if shuffle:
