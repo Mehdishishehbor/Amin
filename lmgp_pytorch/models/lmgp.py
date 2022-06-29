@@ -62,7 +62,7 @@ class LMGP(GPR):
         lv_dim:int=2,
         quant_correlation_class:str='Rough_RBF',
         noise:float=1e-4,
-        fix_noise:bool=True,
+        fix_noise:bool=False,
         lb_noise:float=1e-8,
         NN_layers:list = [],
         encoding_type = 'one-hot',
@@ -219,12 +219,16 @@ class LMGP(GPR):
 
 
 
-    def fit(self, method = 'scipy', num_restarts = 24):
+    def fit(self, method = 'scipy', num_restarts = 24, n_jobs=8):
         
         if method == 'scipy':
-            fit_model_scipy(self, num_restarts= num_restarts)
+            self.likelihood.raw_noise.requires_grad_(True)
+            self.reset_parameters()
+            fit_model_scipy(self, num_restarts= num_restarts, n_jobs= n_jobs)
         elif method == 'continuation':
-            noise_tune2(self, num_restarts = num_restarts)
+            self.likelihood.raw_noise.requires_grad_(False)
+            self.reset_parameters()
+            noise_tune2(self, num_restarts = num_restarts, n_jobs = n_jobs)
 
 
     def predict(self, Xtest,return_std=True, include_noise = True):
@@ -235,8 +239,12 @@ class LMGP(GPR):
     def score(self, Xtest, ytest, plot_MSE = True):
         ypred = self.predict(Xtest, return_std=False)
         mse = ((ytest-ypred)**2).mean()
-        print('#########################################')
+        print('################MSE######################')
         print(f'MSE = {mse:.2f}')
+        print('#########################################')
+        print('################Noise####################')
+        noise = self.likelihood.noise_covar.noise.item() * self.y_std**2
+        print(f'The estimated noise parameter is {noise}')
         print('#########################################')
 
         if plot_MSE:

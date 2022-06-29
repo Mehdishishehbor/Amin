@@ -27,8 +27,8 @@ from typing import Dict
 
 from lmgp_pytorch.visual import plot_latent
 
-from lmgp_pytorch.preprocessing.normalize import standard
-from lmgp_pytorch.preprocessing.numericlevels import setlevels
+from lmgp_pytorch.preprocessing import standard
+from lmgp_pytorch.preprocessing import setlevels
 
 
 tkwargs = {
@@ -129,7 +129,7 @@ if save_mat_flag:
 
 train_x = setlevels(train_x, config.qual_index)
 test_x = setlevels(test_x, config.qual_index)
-train_x, test_x = standard(train_x, config.quant_index, test_x)
+train_x, test_x, mean_xtrain, std_xtrain = standard(train_x, config.quant_index, test_x)
 
 train_x = train_x.to(**tkwargs)
 train_y = train_y.to(**tkwargs)
@@ -139,9 +139,7 @@ test_y = test_y.to(**tkwargs)
 model2 = LMGP(
     train_x=train_x.to(**tkwargs),
     train_y=train_y.to(**tkwargs),
-    qual_index=config.qual_index,
-    quant_index=config.quant_index,
-    num_levels_per_var=list(config.num_levels.values()),
+    qual_ind_lev = config.num_levels,
     quant_correlation_class= quant_kernel,
     NN_layers= [],
     fix_noise= False

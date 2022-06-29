@@ -45,10 +45,11 @@ def loocv_rrmse(model:GPR):
 # NLL is negative loglikelihood
 def noise_tune2(
     model:GPR,add_prior:bool=True,
-    num_restarts:int=9,criterion:str='NLL',
+    num_restarts:int=8,criterion:str='NLL',
     initial_noise_var:float=1,
     red_factor:float=math.sqrt(10),
-    options:Dict={},n_jobs:int=1,
+    options:Dict={},
+    n_jobs:int=1,
     accuracy = 1e-2,
     method = 'L-BFGS-B',
     constraint=False,
@@ -171,7 +172,7 @@ def noise_tune2(
             old_state_dict[i] = deepcopy(model.state_dict())
             
             reslist,nll = fit_model_scipy(
-                model,add_prior,num_restarts=num_restarts,theta0_list=theta0_list,options=options, n_jobs= 8, method=method, constraint=constraint, regularization_parameter=regularization_parameter, bounds=bounds
+                model,add_prior,num_restarts=num_restarts,theta0_list=theta0_list,options=options, n_jobs= n_jobs, method=method, constraint=constraint, regularization_parameter=regularization_parameter, bounds=bounds
             )
             
             if all([isinstance(res,RuntimeError) or isinstance(res,TypeError) for res in reslist]):

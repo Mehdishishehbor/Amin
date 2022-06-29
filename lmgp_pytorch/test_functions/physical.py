@@ -154,9 +154,6 @@ def borehole_mixed_variables(n=100, X = None, qual_ind_val = {0:5, 6:3},
         _type_: _description_
     """
 
-    if random_state is not None:
-        np.random.seed(random_state)
-
     labels = {'rw':0, 'r':1, 'Tu':2, 'Hu':3, "Tl":4, 'Hl':5, 'L':6, 'Kw':7}
 
     dx = 8
