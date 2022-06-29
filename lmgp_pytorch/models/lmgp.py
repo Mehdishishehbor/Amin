@@ -219,7 +219,7 @@ class LMGP(GPR):
 
 
 
-    def fit(self, method = 'scipy', num_restarts = 24, n_jobs=8):
+    def fit(self, method = 'scipy', num_restarts = 24, n_jobs=1):
         
         if method == 'scipy':
             self.likelihood.raw_noise.requires_grad_(True)

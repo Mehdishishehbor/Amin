@@ -1,14 +1,19 @@
 #!/usr/bin/env python
 import torch
 from lmgp_pytorch.models import LMGP
-from lmgp_pytorch.test_functions.physical import Borehole
+from lmgp_pytorch.test_functions.physical import borehole
 from lmgp_pytorch.preprocessing import train_test_split_normalizeX
+from lmgp_pytorch.utils import set_seed
 
-X, y = Borehole(n = 10000, random_state= 12345)
-Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99, random_state = 123456)
+random_state = 12345
+set_seed(random_state)
+
+
+X, y = borehole(n = 10000, random_state= 12345)
+Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99)
 
 model = LMGP(Xtrain, ytrain)
-model.fit()
+model.fit(n_jobs=4)
 model.score(Xtest, ytest, plot_MSE=True)
 
 model.get_params()
