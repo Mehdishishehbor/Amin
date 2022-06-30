@@ -393,7 +393,7 @@ class LMGP(GPR):
             x_one_hot = torch.concat(x_one_hot, axis=1)
         '''
 
-        x = setlevels(x)
+        #x = setlevels(x)
 
         if self.encoding_type == 'one-hot':
             index = [self.perm_dict[str(row.tolist())] for row in x]

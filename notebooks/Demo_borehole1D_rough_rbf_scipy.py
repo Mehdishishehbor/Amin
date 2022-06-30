@@ -134,19 +134,19 @@ qual_index = {0:5, 5:5}
 random_state = 12345
 set_seed(random_state)
 X, y = borehole_mixed_variables(n = 10000, qual_ind_val= qual_index, random_state = random_state)
-# Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99, 
-#     qual_index_val= qual_index)
+Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99, 
+     qual_index_val= qual_index)
 
-train_x = X[:100,:]
-train_y = y[:100]
-test_x = X[100:,:]
-test_y = y[100:]
+# train_x = X[:100,:]
+# train_y = y[:100]
+# test_x = X[100:,:]
+# test_y = y[100:]
 
 train_y = torch.tensor(train_y).double()
 test_y = torch.tensor(test_y).double()
 
-train_x = setlevels(train_x, config.qual_index)
-test_x = setlevels(test_x, config.qual_index)
+train_x = setlevels(train_x, [0, 5])
+test_x = setlevels(test_x, [0, 5])
 train_x, test_x, mean_xtrain, std_xtrain = standard(train_x, [1,2,3,4,6,7], test_x)
 
 train_x = train_x.to(**tkwargs)
@@ -171,9 +171,9 @@ model2.reset_parameters
 # optimize noise successively
 reslist,opt_history = fit_model_scipy(
     model2, 
-    num_restarts = 12,
+    num_restarts = 1,
     add_prior=add_prior_flag # number of restarts in the initial iteration
-    , n_jobs = -1
+    , n_jobs = 1
 )
 
 # 
