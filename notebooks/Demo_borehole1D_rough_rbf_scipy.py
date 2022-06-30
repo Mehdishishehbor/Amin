@@ -127,19 +127,40 @@ if save_mat_flag:
     savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 
+from lmgp_pytorch.test_functions.physical import borehole_mixed_variables
+from lmgp_pytorch.preprocessing import train_test_split_normalizeX
+
+qual_index = {0:5, 5:5}
+random_state = 12345
+set_seed(random_state)
+X, y = borehole_mixed_variables(n = 10000, qual_ind_val= qual_index, random_state = random_state)
+# Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99, 
+#     qual_index_val= qual_index)
+
+train_x = X[:100,:]
+train_y = y[:100]
+test_x = X[100:,:]
+test_y = y[100:]
+
+train_y = torch.tensor(train_y).double()
+test_y = torch.tensor(test_y).double()
+
 train_x = setlevels(train_x, config.qual_index)
 test_x = setlevels(test_x, config.qual_index)
-train_x, test_x, mean_xtrain, std_xtrain = standard(train_x, config.quant_index, test_x)
+train_x, test_x, mean_xtrain, std_xtrain = standard(train_x, [1,2,3,4,6,7], test_x)
 
 train_x = train_x.to(**tkwargs)
 train_y = train_y.to(**tkwargs)
 test_x = test_x.to(**tkwargs)
 test_y = test_y.to(**tkwargs)
 
+
+
+
 model2 = LMGP(
-    train_x=train_x.to(**tkwargs),
-    train_y=train_y.to(**tkwargs),
-    qual_ind_lev = config.num_levels,
+    train_x=train_x,
+    train_y=train_y,
+    qual_ind_lev = qual_index,
     quant_correlation_class= quant_kernel,
     NN_layers= [],
     fix_noise= False
@@ -150,9 +171,9 @@ model2.reset_parameters
 # optimize noise successively
 reslist,opt_history = fit_model_scipy(
     model2, 
-    num_restarts = num_minimize_init,
+    num_restarts = 12,
     add_prior=add_prior_flag # number of restarts in the initial iteration
-    , n_jobs = 8
+    , n_jobs = -1
 )
 
 # 

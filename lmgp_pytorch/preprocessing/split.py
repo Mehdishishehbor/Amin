@@ -9,12 +9,13 @@ def train_test_split_normalizeX(
     test_size=None,
     shuffle=True,
     stratify=None,
-    qual_index = {},
+    qual_index_val = {},
     return_mean_std = False
 ):
     # Finding the quant index from qual index
+    qual_index = list(qual_index_val.keys())
     all_index = set(range(X.shape[-1]))
-    quant_index = list(all_index.difference(list(qual_index.keys())))
+    quant_index = list(all_index.difference(qual_index))
     # This will assign levels to categorical evenif the levels are strings
     X = setlevels(X, qual_index = qual_index)
     # Split test and train

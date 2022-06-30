@@ -31,7 +31,7 @@ from pandas import DataFrame
 from category_encoders import BinaryEncoder
 
 from lmgp_pytorch.preprocessing.numericlevels import setlevels
-from lmgp_pytorch.optim import fit_model_scipy, noise_tune2
+#from lmgp_pytorch.optim import fit_model_scipy, noise_tune2
 from lmgp_pytorch.visual import plot_ls
 import matplotlib.pyplot as plt
 
@@ -216,20 +216,6 @@ class LMGP(GPR):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return MultivariateNormal(mean_x,covar_x)
-
-
-
-    def fit(self, method = 'scipy', num_restarts = 24, n_jobs=1):
-        
-        if method == 'scipy':
-            self.likelihood.raw_noise.requires_grad_(True)
-            self.reset_parameters()
-            fit_model_scipy(self, num_restarts= num_restarts, n_jobs= n_jobs)
-        elif method == 'continuation':
-            self.likelihood.raw_noise.requires_grad_(False)
-            self.reset_parameters()
-            noise_tune2(self, num_restarts = num_restarts, n_jobs = n_jobs)
-
 
     def predict(self, Xtest,return_std=True, include_noise = True):
         with torch.no_grad():
