@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.stats.qmc import Sobol, scale
 import math
 import torch
-from lmgp_pytorch.preprocessing import setlevels 
+from lmgp_pytorch.preprocessing import setlevels
 
 ####################################Wing Function################################################
 

@@ -6,18 +6,17 @@ from lmgp_pytorch.preprocessing import train_test_split_normalizeX
 from lmgp_pytorch.utils import set_seed
 from lmgp_pytorch.optim import fit_model_scipy
 
-random_state = 12345
+random_state = 4
 set_seed(random_state)
-qual_index = {0:5, 6:5}
+qual_index = {0:5, 5:5}
 
 X, y = borehole_mixed_variables(n = 10000, qual_ind_val= qual_index, random_state = random_state)
 Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99, 
     qual_index_val= qual_index)
 
 model = LMGP(Xtrain, ytrain, qual_ind_lev=qual_index)
-#model.fit(n_jobs=1)
 model.reset_parameters
-_ = fit_model_scipy(model, num_restarts= 12, n_jobs= -1)
+_ = fit_model_scipy(model, num_restarts= 24, n_jobs=1)
 model.score(Xtest, ytest, plot_MSE=True)
 
 model.get_params()

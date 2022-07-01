@@ -281,7 +281,7 @@ def fit_model_scipy(
     theta0_list:Optional[List[np.ndarray]]=None,
     jac:bool=True, 
     options:Dict={},
-    n_jobs:int=1,
+    n_jobs:int=-1,
     method = 'L-BFGS-B',
     constraint=False,
     bounds=False,

@@ -10,14 +10,12 @@ random_state = 12345
 set_seed(random_state)
 
 
-X, y = borehole(n = 100, random_state= 12345)
-Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.9)
+X, y = borehole(n = 10000, random_state= 12345)
+Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99)
 
 model = LMGP(Xtrain, ytrain)
-#model.fit(n_jobs=4)
-
 model.reset_parameters
-_ = fit_model_scipy(model, num_restarts= 12, n_jobs= 4)
+_ = fit_model_scipy(model, num_restarts= 12)
 
 model.score(Xtest, ytest, plot_MSE=True)
 

@@ -22,26 +22,17 @@ from lmgp_pytorch.models import LVGPR, LMGP
 from lmgp_pytorch.optim import fit_model_scipy,noise_tune
 from lmgp_pytorch.utils.variables import NumericalVariable,CategoricalVariable
 from lmgp_pytorch.utils.input_space import InputSpace
+from lmgp_pytorch.optim import noise_tune2
 
 from typing import Dict
 
 from lmgp_pytorch.visual import plot_latent
 
-from lmgp_pytorch.preprocessing import standard
-from lmgp_pytorch.preprocessing import setlevels
-
-
-tkwargs = {
-    "dtype": torch.double,
-    "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
-}
-
-
 ###############Parameters########################
-noise_flag = 0.0
-noise_std = 3.0
+noise_flag = 0
+noise_std = 2.0
 add_prior_flag = True
-num_minimize_init = 25
+num_minimize_init = 8
 num_samples_train = 100
 num_samples_test = 10000
 save_mat_flag = False
@@ -94,7 +85,7 @@ config
 
 #######################################################################
 # generate 100 samples
-set_seed(1)
+set_seed(4)
 train_x = torch.from_numpy(
     config.random_sample(np.random,num_samples_train)
 )
@@ -109,6 +100,7 @@ if noise_flag == 1:
     train_y += torch.randn(train_y.size()) * noise_std
 
 # generate 1000 test samples
+num_samples_test = 10000
 test_x = torch.from_numpy(config.random_sample(np.random,num_samples_test))
 test_y = [None]*num_samples_test
 
@@ -127,43 +119,21 @@ if save_mat_flag:
     savemat('borehole_100.mat',{'Xtrain':train_x.numpy(), 'Xtest':test_x.numpy(), 'ytrain':train_y.numpy(), 'ytest':test_y.numpy()})
 
 
-from lmgp_pytorch.test_functions.physical import borehole_mixed_variables
-from lmgp_pytorch.preprocessing import train_test_split_normalizeX
+X = train_x[...,config.quant_index]
+xmin = X.min(axis=0)
+xmax = X.max(axis = 0)
+X = (X - xmin.values) / (xmax.values - xmin.values)
 
-qual_index = {0:5, 5:5}
-random_state = 12345
-set_seed(random_state)
-X, y = borehole_mixed_variables(n = 10000, qual_ind_val= qual_index, random_state = random_state)
-train_x, test_x, train_y, test_y = train_test_split_normalizeX(X, y, test_size = 0.99, 
-    qual_index_val= qual_index, shuffle=False)
+train_x[...,config.quant_index] = X
 
-# train_x = X[:100,:]
-# train_y = y[:100]
-# test_x = X[100:,:]
-# test_y = y[100:]
-
-# train_y = torch.tensor(train_y).double()
-# test_y = torch.tensor(test_y).double()
-
-train_x = train_x.to(**tkwargs)
-train_y = train_y.to(**tkwargs)
-test_x = test_x.to(**tkwargs)
-test_y = test_y.to(**tkwargs)
-
-# X = train_x[...,config.quant_index]
-# xmin = X.min(axis=0)
-# xmax = X.max(axis = 0)
-# X = (X - xmin.values) / (xmax.values - xmin.values)
-
-# train_x[...,config.quant_index] = X
-
-# test_x[...,config.quant_index] = (test_x[...,config.quant_index] - xmin.values)/ (xmax.values - xmin.values)
+test_x[...,config.quant_index] = (test_x[...,config.quant_index] - xmin.values)/ (xmax.values - xmin.values)
 
 
+set_seed(4)
 model2 = LMGP(
     train_x=train_x,
     train_y=train_y,
-    qual_ind_lev =  qual_index, #{6:5, 7:5},
+    qual_ind_lev = {6:5, 7:5},
     quant_correlation_class= quant_kernel,
     NN_layers= [],
     fix_noise= False
@@ -171,7 +141,6 @@ model2 = LMGP(
 
 model2.reset_parameters
 
-# optimize noise successively
 reslist,opt_history = fit_model_scipy(
     model2, 
     num_restarts = 8,
@@ -179,18 +148,14 @@ reslist,opt_history = fit_model_scipy(
     , n_jobs = 8
 )
 
-# 
-#print(reslist)
-#print(opt_history[-1])
+
+
 ################################# prediction on test set ########################################
 with torch.no_grad():
     # set return_std = False if standard deviation is not needed
-    test_mean2, std = model2.predict(test_x,return_std=True, include_noise = True)
+    test_mean2 = model2.predict(test_x,return_std=False, include_noise = True)
     
 
-
-# print('######################################')
-# print(f'The value of the interval score is {model2.interval_alpha}')
 
 print('######################################')
 noise = model2.likelihood.noise_covar.noise.item() * model2.y_std**2
@@ -216,8 +181,8 @@ print(f'The total time in second is {end_time - start_time}')
 plot_latent.plot_ls(model2, constraints_flag= True)
 
 plt.figure(figsize=(8,6))
-plt.plot(test_y.cpu().numpy(), test_mean2.cpu().numpy(), 'ro')
-plt.plot(test_y.cpu().numpy(), test_y.cpu().numpy(), 'b')
+plt.plot(test_y, test_mean2, 'ro')
+plt.plot(test_y, test_y, 'b')
 plt.xlabel(r'Y_True')
 plt.ylabel(r'Y_predict')
 plt.show()

@@ -30,7 +30,7 @@ import numpy as np
 from pandas import DataFrame
 from category_encoders import BinaryEncoder
 
-from lmgp_pytorch.preprocessing.numericlevels import setlevels
+from lmgp_pytorch.preprocessing import setlevels
 #from lmgp_pytorch.optim import fit_model_scipy, noise_tune2
 from lmgp_pytorch.visual import plot_ls
 import matplotlib.pyplot as plt
@@ -393,7 +393,7 @@ class LMGP(GPR):
             x_one_hot = torch.concat(x_one_hot, axis=1)
         '''
 
-        #x = setlevels(x)
+        x = setlevels(x)
 
         if self.encoding_type == 'one-hot':
             index = [self.perm_dict[str(row.tolist())] for row in x]
