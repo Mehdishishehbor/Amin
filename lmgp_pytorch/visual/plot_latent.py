@@ -34,7 +34,7 @@ def plot_ls(model, constraints_flag = True):
 
 
     fig,axs = plt.subplots(1, len(levels),figsize=(12,6))
-    colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
+    #colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
     tab20 = plt.get_cmap('tab10')
     colors = tab20.colors
 

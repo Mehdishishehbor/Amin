@@ -21,7 +21,7 @@ Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.9
 ############################### Model ##############################################
 model = LMGP(Xtrain, ytrain, qual_ind_lev=qual_index)
 ############################### Fit Model ##########################################
-_ = fit_model_scipy(model, num_restarts= 24, n_jobs=1)
+_ = fit_model_scipy(model, num_restarts= 1, n_jobs=1)
 ############################### Score ##############################################
 model.score(Xtest, ytest, plot_MSE=True)
 ############################### Latent Map ##############################################

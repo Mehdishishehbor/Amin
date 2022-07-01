@@ -1,1 +1,1 @@
-from .plot_latent import plot_ls
+from .plot_latenth import plot_ls

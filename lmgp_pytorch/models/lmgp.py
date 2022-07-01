@@ -58,7 +58,7 @@ class LMGP(GPR):
         train_x:torch.Tensor,
         train_y:torch.Tensor,
         qual_ind_lev = {},
-        noise_indices:List[int] = [],
+        multiple_noise = False,
         lv_dim:int=2,
         quant_correlation_class:str='Rough_RBF',
         noise:float=1e-4,
@@ -73,6 +73,12 @@ class LMGP(GPR):
         all_index = set(range(train_x.shape[-1]))
         quant_index = list(all_index.difference(qual_index))
         num_levels_per_var = list(qual_ind_lev.values())
+
+        #
+        if multiple_noise:
+            noise_indices = list(range(0,num_levels_per_var[0]))
+        else:
+            noise_indices = []
 
 
         if len(qual_index) == 1 and num_levels_per_var[0] < 2:
@@ -222,14 +228,14 @@ class LMGP(GPR):
             return super().predict(Xtest, return_std = return_std, include_noise= include_noise)
   
 
-    def score(self, Xtest, ytest, plot_MSE = True):
+    def score(self, Xtest, ytest, plot_MSE = True, title = None):
         ypred = self.predict(Xtest, return_std=False)
         mse = ((ytest-ypred)**2).mean()
         print('################MSE######################')
         print(f'MSE = {mse:.2f}')
         print('#########################################')
         print('################Noise####################')
-        noise = self.likelihood.noise_covar.noise.item() * self.y_std**2
+        noise = self.likelihood.noise_covar.noise.detach() * self.y_std**2
         print(f'The estimated noise parameter (varaince) is {noise}')
         print(f'The estimated noise std is {np.sqrt(noise)}')
         print('#########################################')
@@ -240,12 +246,15 @@ class LMGP(GPR):
             _ = plt.plot(ytest.cpu().numpy(), ytest.cpu().numpy(), 'b')
             _ = plt.xlabel(r'Y_True')
             _ = plt.ylabel(r'Y_predict')
-        return mse
+            if title is not None:
+                _ = plt.title(title)
+        return mse, noise
 
-    def visualize_latent(self):
+    def visualize_latent(self, suptitle = None):
         if len(self.qual_index) > 0:
-            plot_ls(self, constraints_flag=True)
+            plot_ls(self, constraints_flag=True, suptitle = suptitle)
     
+    @classmethod
     def show(cls):
         plt.show()
         
