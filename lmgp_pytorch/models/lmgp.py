@@ -230,7 +230,8 @@ class LMGP(GPR):
         print('#########################################')
         print('################Noise####################')
         noise = self.likelihood.noise_covar.noise.item() * self.y_std**2
-        print(f'The estimated noise parameter is {noise}')
+        print(f'The estimated noise parameter (varaince) is {noise}')
+        print(f'The estimated noise std is {np.sqrt(noise)}')
         print('#########################################')
 
         if plot_MSE:
@@ -239,13 +240,13 @@ class LMGP(GPR):
             _ = plt.plot(ytest.cpu().numpy(), ytest.cpu().numpy(), 'b')
             _ = plt.xlabel(r'Y_True')
             _ = plt.ylabel(r'Y_predict')
-            _ = plt.show()
         return mse
 
     def visualize_latent(self):
         if len(self.qual_index) > 0:
             plot_ls(self, constraints_flag=True)
-        
+    
+    def show(cls):
         plt.show()
         
     def get_params(self, name = None):
