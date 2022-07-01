@@ -294,7 +294,6 @@ class LMGP(GPR):
         print('#############################################################')
         return self.likelihood(self(X)).log_prob(y)
 
-
     def sample_y(self, size = 1, X = None, plot = False):
         if X == None:
             X = self.train_inputs[0]
@@ -304,13 +303,11 @@ class LMGP(GPR):
         draws = out.sample(sample_shape = torch.Size([size]))
         index = np.argsort(out.loc.detach().numpy())
         if plot:
-            plt.scatter(list(range(len(X))), out.loc.detach().numpy()[index], color = 'red', s = 20, marker = 'o')
-            plt.scatter(np.repeat(np.arange(len(X)).reshape(1,-1), size, axis = 0), 
+            _ = plt.figure(figsize=(12,6))
+            _ = plt.scatter(list(range(len(X))), out.loc.detach().numpy()[index], color = 'red', s = 20, marker = 'o')
+            _ = plt.scatter(np.repeat(np.arange(len(X)).reshape(1,-1), size, axis = 0), 
                 draws.detach().numpy()[:,index], color = 'blue', s = 1, alpha = 0.5, marker = '.')
-            plt.show()
         return draws
-
-
 
     def get_latent_space(self):
         if len(self.qual_index) > 0:
