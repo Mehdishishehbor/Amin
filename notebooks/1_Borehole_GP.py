@@ -9,8 +9,9 @@ from lmgp_pytorch.optim import fit_model_scipy
 random_state = 12345
 set_seed(random_state)
 
+
 ############################ Generate Data #########################################
-X, y = borehole(n = 1000, random_state= 12345)
+X, y = borehole(n = 10000, random_state= 12345)
 ############################## train test split ####################################
 Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99)
 ############################### Model ##############################################

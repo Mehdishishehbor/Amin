@@ -11,29 +11,18 @@ random_state = 4
 set_seed(random_state)
 qual_index = {0:5, 5:5}
 ############################ Generate Data #########################################
-X, y = borehole_mixed_variables(n = 1000, qual_ind_val= qual_index, random_state = random_state)
+X, y = borehole_mixed_variables(n = 10000, qual_ind_val= qual_index, random_state = random_state)
 ############################## train test split ####################################
 Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.99, 
     qual_index_val= qual_index)
 ############################### Model ##############################################
 model = LMGP(Xtrain, ytrain, qual_ind_lev=qual_index)
 ############################### Fit Model ##########################################
-_ = fit_model_scipy(model, num_restarts= 1, n_jobs=1)
+_ = fit_model_scipy(model)
 ############################### Score ##############################################
 model.score(Xtest, ytest, plot_MSE=True)
-
-# model.get_params()
-
-# model.log_marginal_likelihood(X = Xtest[0,:], y = ytest[0])
-
-# _ = model.sample_y()
-
-# _ = model.sample_y(size = 1000, plot=True)
-
-
 ############################### latent space ########################################
 _ = model.visualize_latent()
 model.show()
-print(model.get_latent_space())
 
 

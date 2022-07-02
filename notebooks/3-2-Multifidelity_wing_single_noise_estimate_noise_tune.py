@@ -23,7 +23,7 @@ model = LMGP(Xtrain, ytrain, qual_ind_lev=qual_index)
 ############################### Fit Model ##########################################
 _ = noise_tune2(model, num_restarts= 8)
 ############################### Score ##############################################
-model.score(Xtest, ytest, plot_MSE=True)
+model.score(Xtest, ytest, plot_MSE=True, seperate_levels=True)
 ############################### Latent Map ##############################################
 _ = model.visualize_latent()
 model.show()

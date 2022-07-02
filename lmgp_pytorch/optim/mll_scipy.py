@@ -277,7 +277,7 @@ def _fit_model_from_state(likobj,theta0,jac,options, method = 'trust-constr',con
 def fit_model_scipy(
     model,
     add_prior:bool=True,
-    num_restarts:int=8,
+    num_restarts:int=24,
     theta0_list:Optional[List[np.ndarray]]=None,
     jac:bool=True, 
     options:Dict={},

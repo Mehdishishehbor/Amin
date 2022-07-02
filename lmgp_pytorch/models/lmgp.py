@@ -228,11 +228,11 @@ class LMGP(GPR):
             return super().predict(Xtest, return_std = return_std, include_noise= include_noise)
   
 
-    def score(self, Xtest, ytest, plot_MSE = True, title = None):
+    def score(self, Xtest, ytest, plot_MSE = True, title = None, seperate_levels = False):
         ypred = self.predict(Xtest, return_std=False)
         mse = ((ytest-ypred)**2).mean()
         print('################MSE######################')
-        print(f'MSE = {mse:.2f}')
+        print(f'MSE = {mse:.3f}')
         print('#########################################')
         print('################Noise####################')
         noise = self.likelihood.noise_covar.noise.detach() * self.y_std**2
@@ -242,12 +242,19 @@ class LMGP(GPR):
 
         if plot_MSE:
             _ = plt.figure(figsize=(8,6))
-            _ = plt.plot(ytest.cpu().numpy(), ypred.cpu().numpy(), 'ro')
-            _ = plt.plot(ytest.cpu().numpy(), ytest.cpu().numpy(), 'b')
+            _ = plt.plot(ytest.cpu().numpy(), ypred.cpu().numpy(), 'ro', label = 'Data')
+            _ = plt.plot(ytest.cpu().numpy(), ytest.cpu().numpy(), 'b', label = 'MSE = ' + str(np.round(mse.detach().item(),3)))
             _ = plt.xlabel(r'Y_True')
             _ = plt.ylabel(r'Y_predict')
+            _ = plt.legend()
             if title is not None:
                 _ = plt.title(title)
+
+        if seperate_levels and len(self.qual_index) > 0:
+            for i in range(self.num_levels_per_var[0]):
+                index = torch.where(Xtest[:,self.qual_index] == i)[0]
+                _ = self.score(Xtest[index,...], ytest[index], 
+                    plot_MSE=True, title = title + ' Only Source ' + str(i), seperate_levels=False)
         return mse, noise
 
     def visualize_latent(self, suptitle = None):

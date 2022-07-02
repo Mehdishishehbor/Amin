@@ -22,11 +22,11 @@ Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.9
 model_single_noise = LMGP(Xtrain, ytrain, qual_ind_lev=qual_index, multiple_noise= False)
 model_multiple_noise = LMGP(Xtrain, ytrain, qual_ind_lev=qual_index, multiple_noise= True)
 ############################### Fit Model ##########################################
-_ = fit_model_scipy(model_single_noise, num_restarts= 24)
-_ = fit_model_scipy(model_multiple_noise, num_restarts= 24)
+_ = fit_model_scipy(model_single_noise)
+_ = fit_model_scipy(model_multiple_noise)
 ############################### Score ##############################################
-model_single_noise.score(Xtest, ytest, plot_MSE=True, title = 'Single Noise')
-model_multiple_noise.score(Xtest, ytest, plot_MSE=True, title = 'Multiple Noise')
+model_single_noise.score(Xtest, ytest, plot_MSE=True, title = 'Single Noise', seperate_levels=True)
+model_multiple_noise.score(Xtest, ytest, plot_MSE=True, title = 'Multiple Noise', seperate_levels=True)
 ############################### Latent Map ##############################################
 _ = model_single_noise.visualize_latent(suptitle='Single Noise')
 _ = model_multiple_noise.visualize_latent(suptitle='Multiple Noise')
