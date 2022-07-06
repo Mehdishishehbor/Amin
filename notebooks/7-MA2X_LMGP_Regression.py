@@ -38,7 +38,7 @@ if level_set is None:
 
 ########### Make it standard ######################
 if len(qual_index) > 0:
-    X = setlevels(X, qual_index)
+    X, labels = setlevels(X, qual_index, return_label=True)
     X = standard(X, quant_index)
 
 qual_index_lev = {i:j for i,j in zip(qual_index, level_set)}
@@ -57,7 +57,7 @@ _= fit_model_scipy(model)
 
 #_ = model.score(X, y, plot_MSE=True)
 
-_ = model.visualize_latent()
+_ = model.visualize_latent(labels = labels)
 LMGP.show()
 
 

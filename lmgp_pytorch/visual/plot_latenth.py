@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-def plot_ls(model, constraints_flag = True, suptitle= None):
+def plot_ls(model, constraints_flag = True, suptitle= None, labels = []):
     # 
     # plot latent values
 
@@ -36,7 +36,7 @@ def plot_ls(model, constraints_flag = True, suptitle= None):
     plt.rcParams.update({'font.size': 19})
     #fig,axs = plt.subplots(1, len(levels),figsize=(12,6))
     #colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
-    tab20 = plt.get_cmap('tab10')
+    tab20 = plt.get_cmap('tab20')
     colors = tab20.colors
     # loop over the number of variables
     if len(levels) < 10:
@@ -46,7 +46,11 @@ def plot_ls(model, constraints_flag = True, suptitle= None):
                 index = torch.where(perm[:,j] == i) 
                 if i<=40:
                     #col = list(map(lambda x: colors[x], np.ones(index[0].numpy().shape) * i))
-                    axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1), color = colors[i%10],s=100)#marker=r'$\clubsuit$'
+                    if labels == []:
+                        label = 'level' + str(i+1)
+                    else:
+                        label = labels[j][i]
+                    axs.scatter(positions[index][...,0], positions[index][...,1], label = label , color = colors[i%20],s=100)#marker=r'$\clubsuit$'
                     axs.set_xlabel(r'$z_1$')
                     axs.set_ylabel(r'$z_2$')
                     axs.legend()

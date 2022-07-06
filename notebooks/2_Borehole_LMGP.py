@@ -23,6 +23,6 @@ _ = fit_model_scipy(model)
 model.score(Xtest, ytest, plot_MSE=True)
 ############################### latent space ########################################
 _ = model.visualize_latent()
-model.show()
+LMGP.show()
 
 

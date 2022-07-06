@@ -24,7 +24,8 @@ import numpy as np
 
 
 
-def setlevels(X, qual_index = None):
+def setlevels(X, qual_index = None, return_label = False):
+    labels = []
     if qual_index == []:
         return X
     if qual_index is None:
@@ -37,6 +38,7 @@ def setlevels(X, qual_index = None):
     if temp.ndim > 1:
         for j in qual_index:
             l = np.sort(np.unique(temp[..., j])).tolist()
+            labels.append(l)
             #l =  torch.unique(temp[..., j], sorted = True).tolist()
             temp[..., j] = torch.tensor([*map(lambda m: l.index(m),temp[..., j])])
     else:
@@ -48,8 +50,15 @@ def setlevels(X, qual_index = None):
         temp = temp.astype(float)
         if type(X) == np.ndarray:
             temp = torch.from_numpy(temp)
-        return temp
+        
+        if return_label:
+            return temp, labels
+        else:
+            return temp
     else:
         if type(X) == np.ndarray:
             temp = torch.from_numpy(temp)
-        return temp
+        if return_label:
+            return temp, labels
+        else:
+            return temp

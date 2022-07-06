@@ -257,9 +257,9 @@ class LMGP(GPR):
                     plot_MSE=True, title = title + ' Only Source ' + str(i), seperate_levels=False)
         return mse, noise
 
-    def visualize_latent(self, suptitle = None):
+    def visualize_latent(self, suptitle = None, labels = []):
         if len(self.qual_index) > 0:
-            plot_ls(self, constraints_flag=True, suptitle = suptitle)
+            plot_ls(self, constraints_flag=True, suptitle = suptitle, labels = labels)
     
     @classmethod
     def show(cls):
