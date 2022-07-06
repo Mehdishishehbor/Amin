@@ -10,6 +10,9 @@ from botorch.models.transforms.outcome import Standardize
 from botorch.models.gp_regression_fidelity import SingleTaskMultiFidelityGP
 from lmgp_pytorch.models import LMGP
 from lmgp_pytorch.optim import fit_model_scipy
+from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
+from botorch import fit_gpytorch_model
+from lmgp_pytorch.preprocessing.numericlevels import  setlevels
 
 def run_bo(model, fit_method, EI, X, y, steps, maximize_flag):
 
@@ -65,7 +68,7 @@ def run_bo_kg(model_name, train_x, train_obj, problem,
         
         else : #isinstance(model, LMGP):
             model = LMGP(train_x, train_obj, qual_ind_lev= qual_index)
-            fit_model_scipy(model)
+            fit_model_scipy(model, num_restarts = 12)
         return model
 
     def project(X):
@@ -131,14 +134,14 @@ def run_bo_kg(model_name, train_x, train_obj, problem,
         mfkg_acqf = get_mfkg(model)
         new_x, new_obj, cost = optimize_mfkg_and_get_observation(mfkg_acqf)
         train_x = torch.cat([train_x, new_x])
-        #train_x = setlevels(train_x, [2])
+        train_x = setlevels(train_x, [2])
         train_obj = torch.cat([train_obj, new_obj.reshape(-1,)])
         cumulative_cost += cost
         cumulative_cost_hist.append(cumulative_cost.clone().cpu().numpy())
         best_f = train_obj.max().reshape(-1,) 
         bestf.append(best_f.clone().cpu().item())
 
-    return best_f, cumulative_cost_hist
+    return bestf, cumulative_cost_hist
 
 
 if __name__ == '__main__':

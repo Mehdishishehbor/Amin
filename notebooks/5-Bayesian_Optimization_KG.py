@@ -13,6 +13,8 @@ from lmgp_pytorch.test_functions.multi_fidelity import Augmented_branin
 from lmgp_pytorch.bayesian_optimizations.cost_model import FlexibleFidelityCostModel
 from botorch.acquisition.cost_aware import InverseCostWeightedUtility
 ###############Parameters########################
+import matplotlib.pyplot as plt
+###################################################
 tkwargs = {
     "dtype": torch.double,
     "device": torch.device("cpu" if torch.cuda.is_available() else "cpu"),
@@ -42,5 +44,8 @@ qual_index = {2:3}
 cost_model = FlexibleFidelityCostModel(values = {'0.0':1.0, '1.0': 0.75, '2.0': 0.5, '3.0': 0.25}, fixed_cost=5.0)
 cost_aware_utility = InverseCostWeightedUtility(cost_model=cost_model)
 
-run_bo_kg(model_name = 'LMGP', train_x = Xtrain_x, train_obj = train_obj, problem = problem, cost_model = cost_model, 
-N_ITER = 10, bounds= bounds, target_fidelities= target_fidelities, qual_index = qual_index)
+bestf, cost = run_bo_kg(model_name = 'LMGP', train_x = Xtrain_x, train_obj = train_obj, problem = problem, cost_model = cost_model, 
+    N_ITER = 10, bounds= bounds, target_fidelities= target_fidelities, cost_aware_utility = cost_aware_utility, qual_index = qual_index)
+
+plt.plot(cost, bestf)
+plt.show()

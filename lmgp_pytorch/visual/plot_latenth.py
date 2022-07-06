@@ -34,18 +34,19 @@ def plot_ls(model, constraints_flag = True, suptitle= None):
     positions = positions.detach().numpy()
 
     plt.rcParams.update({'font.size': 19})
-    fig,axs = plt.subplots(1, len(levels),figsize=(12,6))
+    #fig,axs = plt.subplots(1, len(levels),figsize=(12,6))
     #colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
     tab20 = plt.get_cmap('tab10')
     colors = tab20.colors
     # loop over the number of variables
-    if len(levels) < 2:
+    if len(levels) < 10:
         for j in range(len(levels)):
+            fig,axs = plt.subplots(figsize=(12,6))
             for i in range(levels[j]):
                 index = torch.where(perm[:,j] == i) 
-                if i<=4:
+                if i<=40:
                     #col = list(map(lambda x: colors[x], np.ones(index[0].numpy().shape) * i))
-                    axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1), color = colors[i%10], marker='X',s=300)#marker=r'$\clubsuit$'
+                    axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1), color = colors[i%10],s=100)#marker=r'$\clubsuit$'
                     axs.set_xlabel(r'$z_1$')
                     axs.set_ylabel(r'$z_2$')
                     axs.legend()
@@ -55,6 +56,7 @@ def plot_ls(model, constraints_flag = True, suptitle= None):
                     tempyx = np.max(positions[...,1]) + 0.2 * (np.abs(np.max(positions[...,1])) +5)
                     axs.set_xlim(tempxi, tempxx)
                     axs.set_ylim(tempyi, tempyx)
+                    axs.set_title('Variable ' + str(j), fontsize = 15)
 
                 else: 
                     axs.scatter(positions[index][...,0], positions[index][...,1], label = 'level' + str(i+1))
@@ -68,6 +70,7 @@ def plot_ls(model, constraints_flag = True, suptitle= None):
                     tempyx = np.max(positions[...,1]) + 0.2 * (np.abs(np.max(positions[...,1])) +5)
                     axs.set_xlim(tempxi, tempxx)
                     axs.set_ylim(tempyi, tempyx)
+                    axs.set_title('Variable ' + str(j), fontsize = 15)
     
     else:
         # loop over the number of variables

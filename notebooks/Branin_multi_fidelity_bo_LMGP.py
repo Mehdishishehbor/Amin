@@ -205,9 +205,7 @@ def optimize_mfkg_and_get_observation(mfkg_acqf):
 ###############Parameters########################
 add_prior_flag = True
 num_minimize_init = 12
-qual_index = [2]
-quant_index= [0,1]
-level_sets = [3]
+qual_index = {2:3}
 
 quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
 
@@ -243,9 +241,7 @@ for i in range(N_ITER):
     model = LMGP(
         train_x=train_x.to(**tkwargs),
         train_y=train_obj.to(**tkwargs),
-        qual_index= qual_index,
-        quant_index= quant_index,
-        num_levels_per_var= level_sets,
+        qual_ind_lev= qual_index,
         quant_correlation_class= quant_kernel,
         NN_layers= [],
         fix_noise= False
