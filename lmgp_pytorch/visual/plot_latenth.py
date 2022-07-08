@@ -30,9 +30,15 @@ def plot_ls(model, constraints_flag = True, suptitle= None, labels = []):
     if constraints_flag:
         positions = constrains(positions)
 
+    ####################### Getting Max ##################
+    max = ['Ta', 'P', 'N']
+    ind = []
+    for i in range(len(max)):
+        ind.append(labels[i].index(max[i]))
+    ind2 = torch.where((perm[:,0] == ind[0]) & (perm[:,1] == ind[1]) & (perm[:,2] == ind[2]))
+    ##########################################################
 
     positions = positions.detach().numpy()
-
     plt.rcParams.update({'font.size': 19})
     #fig,axs = plt.subplots(1, len(levels),figsize=(12,6))
     #colors = {0:'blue', 1:'r', 2:'g', 3:'c', 4:'m', 5:'k', 6:'y'}
@@ -50,6 +56,7 @@ def plot_ls(model, constraints_flag = True, suptitle= None, labels = []):
                         label = 'level' + str(i+1)
                     else:
                         label = labels[j][i]
+                    
                     axs.scatter(positions[index][...,0], positions[index][...,1], label = label , color = colors[i%20],s=100)#marker=r'$\clubsuit$'
                     axs.set_xlabel(r'$z_1$')
                     axs.set_ylabel(r'$z_2$')
@@ -75,7 +82,9 @@ def plot_ls(model, constraints_flag = True, suptitle= None, labels = []):
                     axs.set_xlim(tempxi, tempxx)
                     axs.set_ylim(tempyi, tempyx)
                     axs.set_title('Variable ' + str(j), fontsize = 15)
-    
+                
+            axs.scatter(positions[ind2][...,0], positions[ind2][...,1], label = 'MAX' , color = 'k',s=300, marker = 'X')
+            axs.legend()
     else:
         # loop over the number of variables
         for j in range(len(levels)):
