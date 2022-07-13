@@ -1,3 +1,4 @@
+import joblib
 from lmgp_pytorch.models.lmgp import LMGP
 from lmgp_pytorch.optim.mll_scipy import fit_model_scipy
 # from lmgp_pytorch.bayesian_optimizations.acquisition import EI_cost_aware  
@@ -20,6 +21,9 @@ from botorch.utils.sampling import draw_sobol_samples
 from scipy.optimize import minimize
 
 
+from joblib import Parallel, delayed
+from joblib.externals.loky import set_loky_pickler
+
 def run_MA2X_Bayesian(seed, plotflag = False):
 
     #################################################
@@ -41,13 +45,16 @@ def run_MA2X_Bayesian(seed, plotflag = False):
     quant_kernel = 'Rough_RBF' #'RBFKernel' #'Rough_RBF'
     max_cost=40000
     num_high=5
-    num_low=10
+    num_low_1=5
+    num_low_2=10
+    num_low_3=50
+    num_low=50
     noise_indices=[]
     Optimization_technique='L-BFGS-B'
     Optimization_constraint=False 
     regularization_parameter=[0, 0]
     Bounds=True
-
+    
 ########################Cost function################################
 
     def cost_fun(x):
@@ -82,14 +89,36 @@ def run_MA2X_Bayesian(seed, plotflag = False):
             train_obj = problem(train_x_full).unsqueeze(-1) 
         
         else:
+            ###################################
             train_x_high = draw_sobol_samples(bounds[:,:-1],n=num_high,q = 1, batch_shape= None).squeeze(1).to(**tkwargs)
             train_f_high = fidelities[torch.randint(1, (num_high, 1))]
             train_x_full_high = torch.cat((train_x_high, train_f_high), dim=1)
-            train_x_low = draw_sobol_samples(bounds[:,:-1],n=num_low,q = 1, batch_shape= None).squeeze(1).to(**tkwargs)
-            train_f_low = fidelities[(torch.randint(level_set[-1]-1, (num_low, 1)))+1]
-            train_x_full_low = torch.cat((train_x_low, train_f_low), dim=1)
-            train_x_full = torch.cat((train_x_full_high, train_x_full_low), dim=0)
+
+            train_x_low_1 = draw_sobol_samples(bounds[:,:-1],n=num_low_1,q = 1, batch_shape= None).squeeze(1).to(**tkwargs)
+            train_f_low_1 = fidelities[1]*torch.ones(num_low_1,1)
+            train_x_full_low_1 = torch.cat((train_x_low_1, train_f_low_1), dim=1)
+
+            train_x_low_2 = draw_sobol_samples(bounds[:,:-1],n=num_low_2,q = 1, batch_shape= None).squeeze(1).to(**tkwargs)
+            train_f_low_2 = fidelities[2]*torch.ones(num_low_2,1)
+            train_x_full_low_2 = torch.cat((train_x_low_2, train_f_low_2), dim=1)
+
+            train_x_low_3 = draw_sobol_samples(bounds[:,:-1],n=num_low_3,q = 1, batch_shape= None).squeeze(1).to(**tkwargs)
+            train_f_low_3 = fidelities[3]*torch.ones(num_low_3,1)
+            train_x_full_low_3 = torch.cat((train_x_low_3, train_f_low_3), dim=1)
+
+            train_x_full = torch.cat((train_x_full_high, train_x_full_low_1,train_x_full_low_2,train_x_full_low_3), dim=0)
             train_obj = problem(train_x_full).unsqueeze(-1) 
+
+        # else:
+        #     train_x_high = draw_sobol_samples(bounds[:,:-1],n=num_high,q = 1, batch_shape= None).squeeze(1).to(**tkwargs)
+        #     train_f_high = fidelities[torch.randint(1, (num_high, 1))]
+        #     train_x_full_high = torch.cat((train_x_high, train_f_high), dim=1)
+        #     train_x_low = draw_sobol_samples(bounds[:,:-1],n=num_low,q = 1, batch_shape= None).squeeze(1).to(**tkwargs)
+        #     train_f_low = fidelities[(torch.randint(level_set[-1]-1, (num_low, 1)))+1]
+        #     train_x_full_low = torch.cat((train_x_low, train_f_low), dim=1)
+        #     train_x_full = torch.cat((train_x_full_high, train_x_full_low), dim=0)
+        #     train_obj = problem(train_x_full).unsqueeze(-1) 
+
 
 
         return train_x_full, train_obj
@@ -176,8 +205,10 @@ def run_MA2X_Bayesian(seed, plotflag = False):
             best_x.append(best_x0)
 
         
-        if len(bestf)> 100:
-            if np.var(bestf[-50:])<1e-6:
+        if len(bestf)> 10:
+            temp = (bestf[-10:]- np.max(bestf[-10:]))/((np.max(bestf[-10:])- np.min(bestf[-10:])))
+            print(temp)
+            if np.std(temp)< 0.01:
                 break
         
 
@@ -185,11 +216,7 @@ def run_MA2X_Bayesian(seed, plotflag = False):
         model = LMGP(
         train_x=Xtrain,
         train_y=ytrain,
-        noise_indices=noise_indices,
-        qual_index= qual_index,
-        quant_index= quant_index,
-        num_levels_per_var= level_set,
-        quant_correlation_class= quant_kernel,
+        qual_ind_lev={10:4},
         NN_layers= [],
         fix_noise= False,
         lb_noise = 1e-20
@@ -213,13 +240,16 @@ def run_MA2X_Bayesian(seed, plotflag = False):
 
         def EI_cost(samples,best_f,model=model, maximize = False, si = 0.0):
             from torch.distributions import Normal
+            import torch
+            import numpy as np
             #samples=torch.from_numpy(samples.reshape(1,-1))
+            samples= np.concatenate([((samples[0:-1]-xmean.numpy())/xstd.numpy()).reshape(1,-1), samples[-1].reshape(-1,1)], axis = -1)
             samples=torch.tensor(samples.reshape(1,-1))
 
             with torch.no_grad():
                 mean, std = model.predict(samples, return_std=True)
 
-            cost = torch.tensor(list(map(cost_fun, torch.tensor(samples[:,-1], dtype = torch.int64))))
+            cost = torch.tensor(list(map(cost_fun, samples[:,-1])))
 
             mean=mean.reshape(-1,1)
 
@@ -247,13 +277,16 @@ def run_MA2X_Bayesian(seed, plotflag = False):
 
         def EI_cost_high(samples,best_f=best_fh, model=model, maximize = False, si = 0.0):
             from torch.distributions import Normal
+            import torch
+            import numpy as np
+            samples= np.concatenate([((samples[0:-1]-xmean.numpy())/xstd.numpy()).reshape(1,-1), samples[-1].reshape(-1,1)], axis = -1)
             samples=torch.tensor(samples.reshape(1,-1))
             with torch.no_grad():
                 mean, std = model.predict(samples, return_std=True)
 
             mean=mean.reshape(-1,1)
 
-            cost = torch.tensor(list(map(cost_fun, torch.tensor(samples[:,-1], dtype = torch.int64))))
+            cost = torch.tensor(list(map(cost_fun, samples[:,-1])))
 
             # deal with batch evaluation and broadcasting
             view_shape = mean.shape[:-2] if mean.shape[-2] == 1 else mean.shape[:-1]
@@ -274,14 +307,13 @@ def run_MA2X_Bayesian(seed, plotflag = False):
             ucdf = normal.cdf(u)
             updf = torch.exp(normal.log_prob(u))
             # ei = sigma * u * ucdf
-            ei= sigma * (updf + u * ucdf)
+            ei = sigma * u
+            # ei= sigma * (updf + u * ucdf)
             return -1* (ei/cost)
         
        
         ################# Scores ######################### 
     
-
-
         X_list=[]   
         y_list=[] 
 
@@ -292,9 +324,11 @@ def run_MA2X_Bayesian(seed, plotflag = False):
         
 
         def run_scipy(EI, best_f, bound, model, fidelity):
-            temp = np.empty((12,))
-            tempx = []
-            for i in range(12):
+            import torch
+            import numpy as np
+            from botorch.utils.sampling import draw_sobol_samples
+            from scipy.optimize import minimize
+            def run(EI, best_f, bound, model, fidelity):
                 ################ High ###########################
                 l_bound_h = [150, 220, 6, -10, 16, 0.5, 0.08, 2.5, 1700, 0.025,fidelity]
                 u_bound_h = [200, 300, 10, 10, 45, 1, 0.18, 6, 2500, 0.08,fidelity]
@@ -302,10 +336,16 @@ def run_MA2X_Bayesian(seed, plotflag = False):
                 samples_h = draw_sobol_samples(bounds_h,n=1,q = 1, batch_shape= None)
                 samples_h = samples_h.squeeze(1).double()
                 samples_h[:,-1] = torch.round(samples_h[:,-1])
-                samples_h= torch.cat([((samples_h[0][0:-1]-xmean)/xstd).reshape(1,-1), samples_h[0][-1].reshape(-1,1)],dim=-1)
                 result_h = minimize(EI,samples_h.reshape(-1,), args=(best_f, model),bounds=bound)
-                temp[i] = result_h.fun
-                tempx.append(result_h.x)
+                temp = result_h.fun
+                tempx = result_h.x
+                return temp, tempx
+            
+            set_loky_pickler("dill") 
+            out = Parallel(n_jobs=-1,verbose=0)(delayed(run)(EI, best_f, bound, model, fidelity) for _ in range(12))
+            set_loky_pickler("pickle")
+            temp = [out[i][0] for i in range(len(out))]
+            tempx = [out[i][1] for i in range(len(out))]
             min_index = np.argmin(temp)
             Y_h = temp[min_index]
             X_h = tempx[min_index]
@@ -325,22 +365,22 @@ def run_MA2X_Bayesian(seed, plotflag = False):
         print('##############################################')
 
         min_index = np.argmin(y_list)
-        Xnew = X_list[min_index]
-        ynew = torch.tensor(problem(torch.tensor(Xnew).unsqueeze(0)))
+        temp = X_list[min_index]
+        ynew = torch.tensor(problem(torch.tensor(temp).unsqueeze(0)))
         ############# Total calculation ###################
 
         print(f'This was the {i+1} iteration')
         
-        # temp=torch.tensor(temp)
-        # Xnew= torch.cat([((temp[0:-1]-xmean)/xstd).reshape(1,-1), temp[-1].reshape(-1,1)],dim=-1)
+        temp=torch.tensor(temp)
+        Xnew= torch.cat([((temp[0:-1]-xmean)/xstd).reshape(1,-1), temp[-1].reshape(-1,1)],dim=-1)
         Xtrain = torch.cat([Xtrain,torch.tensor(Xnew.reshape(1,-1))])
         ytrain = torch.cat([ytrain, ynew.reshape(-1,)])
         ymin_list.append(ynew.reshape(-1,))
         xmin_list.append(Xnew)
         ##################
-        cumulative_cost.append(initial_cost + cost_fun(Xnew[-1]))
+        cumulative_cost.append(initial_cost + cost_fun(Xnew[0][-1]))
         initial_cost = cumulative_cost[-1]
-        Fidelity.append(Xnew[-1])
+        Fidelity.append(Xnew[0][-1])
         
     
         print(f'Xnew is {Xnew} and \n ynew is {ynew}')
@@ -356,7 +396,7 @@ def run_MA2X_Bayesian(seed, plotflag = False):
 if __name__ == '__main__':
     t1 = time.time()
     np.random.seed(12345)
-    random_seed = np.random.choice(range(0,1000), size=20, replace=False)
+    random_seed = np.random.choice(range(0,1000), size=1, replace=False)
     output = {'cost':[],'best_f':[],'best_x':[],'Fidelity':[]}
     itr = 0
     for seed in random_seed:
@@ -375,8 +415,8 @@ if __name__ == '__main__':
         
   
 
-    # file = open("D:/Research/codes/BO_Gpyorch/New_approach/Final_codes/Results/Wing_CA_EI_LMGP.pkl", "wb")
-    # pickle. dump(output,file)
-    # file. close()
+    file = open("D:/Research/codes/BO_Gpyorch/New_approach/Final_codes/Results/Wing_ca_Final.pkl", "wb")
+    pickle. dump(output,file)
+    file. close()
    
     
