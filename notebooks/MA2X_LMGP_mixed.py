@@ -65,7 +65,7 @@ def run_MA2X_Bayesian(seed, BO_initial = 5, qual_index = [], quant_index= list(r
     ########### Make it standard ######################
     if len(qual_index) > 0:
         X = setlevels(X, qual_index)
-        X = standard(X, quant_index)
+        X,mean, std = standard(X, quant_index)
     else:
         X = X[..., quant_index].astype(float)
         quant_index = list(range(len(quant_index)))
@@ -96,6 +96,8 @@ def run_MA2X_Bayesian(seed, BO_initial = 5, qual_index = [], quant_index= list(r
     else:
         best_f0 = ytrain.min().reshape(-1,) 
 
+
+    qual_ind_lev={0:level_set[0], 1:level_set[1], 2: level_set[2]}
     ##########################################################################################################
     #-------------------------------------------Main Loop-----------------------------------------------------
     ##########################################################################################################
@@ -115,7 +117,7 @@ def run_MA2X_Bayesian(seed, BO_initial = 5, qual_index = [], quant_index= list(r
         model = LMGP(
             train_x=Xtrain,
             train_y=ytrain,
-            qual_ind_lev={},
+            qual_ind_lev=qual_ind_lev,
             quant_correlation_class= quant_kernel,
             NN_layers= [],
             fix_noise= False
@@ -126,7 +128,7 @@ def run_MA2X_Bayesian(seed, BO_initial = 5, qual_index = [], quant_index= list(r
             model, 
             num_restarts = num_minimize_init,
             add_prior=add_prior_flag, # number of restarts in the initial iteration
-            n_jobs= 1
+            n_jobs= -1
         )
 
         ####################################################################
@@ -182,49 +184,6 @@ def run_MA2X_Bayesian(seed, BO_initial = 5, qual_index = [], quant_index= list(r
     return np.array(bestf), i, np.array(ymin_list), np.array(xmin_list)
 
 if __name__ == '__main__':
-
-######################################### GP_only_numerical ################################################
-    t1 = time.time()
-    np.random.seed(12345)
-    random_seed = np.random.choice(range(0,1000), size=15, replace=False)
-    output = {'max_iteration':[], 'Best_value_found':[]}
-    itr = 0
-    for seed in random_seed:
-        itr += 1
-        [bestf, max_itr, ymin_list, xmin_list] = \
-            run_MA2X_Bayesian(seed = seed, BO_initial = 10, qual_index = [], quant_index= list(range(3,10)), plotflag=False)
-        print(f'***************** Random state: {itr} *****************')
-        print(f'maximum iteration is {max_itr}')
-        print(f'maximum index is {np.argmax(ymin_list)} for {ymin_list[np.argmax(ymin_list)]} at \n {xmin_list[np.argmax(ymin_list)]}')
-        output['max_iteration'].append(max_itr)
-        output['Best_value_found'].append(xmin_list[np.argmax(ymin_list)])
-    
-    file = open('GP_initial_5', 'wb')
-    pickle.dump(output, file)
-    file.close()
-    print(f'total time is {time.time() - t1}')
-
-######################################### LMGP_only_cat ################################################
-
-    t1 = time.time()
-    np.random.seed(12345)
-    random_seed = np.random.choice(range(0,1000), size=15, replace=False)
-    output = {'max_iteration':[], 'Best_value_found':[]}
-    itr = 0
-    for seed in random_seed:
-        itr += 1
-        [bestf, max_itr, ymin_list, xmin_list] = \
-            run_MA2X_Bayesian(seed = seed, BO_initial = 10, qual_index = list(range(3)), quant_index= [], plotflag=False)
-        print(f'***************** Random state: {itr} *****************')
-        print(f'maximum iteration is {max_itr}')
-        print(f'maximum index is {np.argmax(ymin_list)} for {ymin_list[np.argmax(ymin_list)]} at \n {xmin_list[np.argmax(ymin_list)]}')
-        output['max_iteration'].append(max_itr)
-        output['Best_value_found'].append(xmin_list[np.argmax(ymin_list)])
-    
-    file = open('LMGP_cat_initial_5', 'wb')
-    pickle.dump(output, file)
-    file.close()
-    print(f'total time is {time.time() - t1}')
 
 ######################################### LMGP_mix ################################################
 
