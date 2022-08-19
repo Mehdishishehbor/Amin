@@ -9,7 +9,7 @@ from lmgp_pytorch.optim import fit_model_scipy
 ##__###
 random_state = 4
 set_seed(random_state)
-qual_index = {0:5, 5:5}
+qual_index = {0:4, 5:4}
 ############################ Generate Data #########################################
 X, y = borehole_mixed_variables(n = 10000, qual_ind_val= qual_index, random_state = random_state)
 ############################## train test split ####################################
@@ -18,7 +18,7 @@ Xtrain, Xtest, ytrain, ytest = train_test_split_normalizeX(X, y, test_size = 0.9
 ############################### Model ##############################################
 model = LMGP(Xtrain, ytrain, qual_ind_lev=qual_index)
 ############################### Fit Model ##########################################
-_ = fit_model_scipy(model)
+_ = fit_model_scipy(model, bounds=True)
 ############################### Score ##############################################
 model.score(Xtest, ytest, plot_MSE=True)
 ############################### latent space ########################################
