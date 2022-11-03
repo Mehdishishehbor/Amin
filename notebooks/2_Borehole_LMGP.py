@@ -4,12 +4,13 @@ from lmgp_pytorch.test_functions.physical import borehole_mixed_variables
 from lmgp_pytorch.preprocessing import train_test_split_normalizeX
 from lmgp_pytorch.utils import set_seed
 from lmgp_pytorch.optim import fit_model_scipy
-
+import torch
+from scipy.io import loadmat 
 ############################### Paramter of the model #########################
 ##__###
 random_state = 4
 set_seed(random_state)
-qual_index = {0:4, 5:4}
+qual_index = {0:5, 5:5}
 ############################ Generate Data #########################################
 X, y = borehole_mixed_variables(n = 10000, qual_ind_val= qual_index, random_state = random_state)
 ############################## train test split ####################################

@@ -24,8 +24,9 @@ def train_test_split_normalizeX(
     Xtrain, Xtest, ytrain, ytest = train_test_split(X, y, 
         test_size= test_size, shuffle= shuffle, stratify=stratify)
     # Standard
-    Xtrain, Xtest, mean_train, std_train = standard(Xtrain = Xtrain, 
-        quant_index = quant_index, Xtest = Xtest)
+    if len(quant_index) > 0:
+        Xtrain, Xtest, mean_train, std_train = standard(Xtrain = Xtrain, 
+            quant_index = quant_index, Xtest = Xtest)
 
     ytrain = torch.tensor(ytrain)
     ytest = torch.tensor(ytest)
